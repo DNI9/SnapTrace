@@ -68,7 +68,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message.type === 'EXPORT_DOCX') {
     const session: Session = message.payload.session;
-    handleExport('OFFSCREEN_EXPORT_DOCX', session)
+    const options = message.payload.options;
+    handleExport('OFFSCREEN_EXPORT_DOCX', session, options)
       .then(() => sendResponse({ success: true }))
       .catch(err => {
         console.error('DOCX Export Error:', err);
@@ -78,7 +79,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message.type === 'EXPORT_PDF') {
     const session: Session = message.payload.session;
-    handleExport('OFFSCREEN_EXPORT_PDF', session)
+    const options = message.payload.options;
+    handleExport('OFFSCREEN_EXPORT_PDF', session, options)
       .then(() => sendResponse({ success: true }))
       .catch(err => {
         console.error('PDF Export Error:', err);
@@ -90,12 +92,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function handleExport(
   type: 'OFFSCREEN_EXPORT_DOCX' | 'OFFSCREEN_EXPORT_PDF',
-  session: Session
+  session: Session,
+  options?: { includeUrl?: boolean }
 ): Promise<void> {
   await setupOffscreenDocument();
   const response = await chrome.runtime.sendMessage({
     type,
-    payload: { session },
+    payload: { session, options },
   });
   if (!response?.success) {
     throw new Error(response?.error || 'Export failed');

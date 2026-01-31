@@ -12,6 +12,18 @@ function App() {
     renameSession,
   } = useSession();
   const [isCreating, setIsCreating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [includeUrl, setIncludeUrl] = useState(() => {
+    const saved = localStorage.getItem('snaptrace-include-url');
+    return saved !== 'false'; // Default to true
+  });
+
+  const toggleIncludeUrl = () => {
+    const newValue = !includeUrl;
+    setIncludeUrl(newValue);
+    localStorage.setItem('snaptrace-include-url', String(newValue));
+  };
+
   const [newSessionName, setNewSessionName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -30,7 +42,7 @@ function App() {
       // Delegate to background worker to prevent browser crash
       const response = await chrome.runtime.sendMessage({
         type: 'EXPORT_DOCX',
-        payload: { session },
+        payload: { session, options: { includeUrl } },
       });
       if (!response?.success) {
         throw new Error(response?.error || 'Export failed');
@@ -47,7 +59,7 @@ function App() {
       // Delegate to background worker to prevent browser crash
       const response = await chrome.runtime.sendMessage({
         type: 'EXPORT_PDF',
-        payload: { session },
+        payload: { session, options: { includeUrl } },
       });
       if (!response?.success) {
         throw new Error(response?.error || 'Export failed');
@@ -89,13 +101,50 @@ function App() {
     <div className="w-80 h-[500px] flex flex-col bg-gray-50">
       <header className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
         <h1 className="font-bold text-lg">SnapTrace</h1>
-        <button
-          onClick={() => setIsCreating(true)}
-          className="text-sm bg-white/20 hover:bg-white/30 px-2 py-1 rounded"
-        >
-          + New
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-1 hover:bg-white/20 rounded text-white"
+            title="Settings"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="text-sm bg-white/20 hover:bg-white/30 px-2 py-1 rounded"
+          >
+            + New
+          </button>
+        </div>
       </header>
+
+      {showSettings && (
+        <div className="p-4 bg-gray-100 border-b shadow-inner">
+          <h2 className="font-semibold text-gray-700 mb-2 text-sm">Settings</h2>
+          <label className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeUrl}
+              onChange={toggleIncludeUrl}
+              className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+            />
+            <span>Include Source URL in Exports</span>
+          </label>
+        </div>
+      )}
 
       {isCreating && (
         <div className="p-4 bg-white border-b">

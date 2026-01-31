@@ -88,7 +88,11 @@ function fitToWidth(
   return { width, height };
 }
 
-export async function exportSessionToDocx(session: Session) {
+interface ExportOptions {
+  includeUrl?: boolean;
+}
+
+export async function exportSessionToDocx(session: Session, options?: ExportOptions) {
   const children = [];
   const MAX_WIDTH = 500; // Max width for images in docx
 
@@ -122,18 +126,20 @@ export async function exportSessionToDocx(session: Session) {
     );
 
     // Sub-heading (URL + Timestamp)
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`,
-            color: '808080',
-            size: 20, // 10pt
-          }),
-        ],
-        spacing: { after: 200 },
-      })
-    );
+    if (options?.includeUrl !== false) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`,
+              color: '808080',
+              size: 20, // 10pt
+            }),
+          ],
+          spacing: { after: 200 },
+        })
+      );
+    }
 
     // Image with aspect ratio - compress first to prevent memory issues
     try {
@@ -177,7 +183,7 @@ export async function exportSessionToDocx(session: Session) {
   await downloadBlob(blob, `${session.name.replace(/[^a-z0-9]/gi, '_')}_Evidence.docx`);
 }
 
-export async function exportSessionToPdf(session: Session) {
+export async function exportSessionToPdf(session: Session, options?: ExportOptions) {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -215,14 +221,16 @@ export async function exportSessionToPdf(session: Session) {
     yPos += 6;
 
     // URL + Timestamp
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(128);
-    const urlText = `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`;
-    const urlLines = pdf.splitTextToSize(urlText, maxImgWidth);
-    pdf.text(urlLines, margin, yPos);
-    yPos += urlLines.length * 4 + 5;
-    pdf.setTextColor(0);
+    if (options?.includeUrl !== false) {
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(128);
+      const urlText = `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`;
+      const urlLines = pdf.splitTextToSize(urlText, maxImgWidth);
+      pdf.text(urlLines, margin, yPos);
+      yPos += urlLines.length * 4 + 5;
+      pdf.setTextColor(0);
+    }
 
     // Image - compress first to prevent memory issues
     try {

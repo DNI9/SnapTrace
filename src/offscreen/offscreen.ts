@@ -86,7 +86,8 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 async function exportSessionToDocx(
-  session: Session
+  session: Session,
+  options?: { includeUrl?: boolean }
 ): Promise<{ dataUrl: string; filename: string }> {
   const children = [];
   const MAX_WIDTH = 500;
@@ -117,18 +118,21 @@ async function exportSessionToDocx(
       })
     );
 
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`,
-            color: '808080',
-            size: 20,
-          }),
-        ],
-        spacing: { after: 200 },
-      })
-    );
+    // URL + Timestamp - Conditional
+    if (options?.includeUrl !== false) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`,
+              color: '808080',
+              size: 20,
+            }),
+          ],
+          spacing: { after: 200 },
+        })
+      );
+    }
 
     try {
       const compressed = await compressImage(item.imageUrl);
@@ -167,7 +171,8 @@ async function exportSessionToDocx(
 }
 
 async function exportSessionToPdf(
-  session: Session
+  session: Session,
+  options?: { includeUrl?: boolean }
 ): Promise<{ dataUrl: string; filename: string }> {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -200,14 +205,16 @@ async function exportSessionToPdf(
     pdf.text(item.description || 'Untitled Evidence', margin, yPos);
     yPos += 6;
 
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(128);
-    const urlText = `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`;
-    const urlLines = pdf.splitTextToSize(urlText, maxImgWidth);
-    pdf.text(urlLines, margin, yPos);
-    yPos += urlLines.length * 4 + 5;
-    pdf.setTextColor(0);
+    if (options?.includeUrl !== false) {
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(128);
+      const urlText = `${item.url} | ${new Date(item.timestamp).toLocaleTimeString()}`;
+      const urlLines = pdf.splitTextToSize(urlText, maxImgWidth);
+      pdf.text(urlLines, margin, yPos);
+      yPos += urlLines.length * 4 + 5;
+      pdf.setTextColor(0);
+    }
 
     try {
       const compressed = await compressImage(item.imageUrl);
@@ -242,7 +249,7 @@ async function exportSessionToPdf(
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'OFFSCREEN_EXPORT_DOCX') {
-    exportSessionToDocx(message.payload.session)
+    exportSessionToDocx(message.payload.session, message.payload.options)
       .then(result => sendResponse({ success: true, ...result }))
       .catch(err => {
         console.error('DOCX Export Error:', err);
@@ -251,7 +258,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message.type === 'OFFSCREEN_EXPORT_PDF') {
-    exportSessionToPdf(message.payload.session)
+    exportSessionToPdf(message.payload.session, message.payload.options)
       .then(result => sendResponse({ success: true, ...result }))
       .catch(err => {
         console.error('PDF Export Error:', err);
