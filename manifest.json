@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "SnapTrace",
+    "version": "1.0.0",
+    "description": "SnapTrace: High-velocity evidence collector",
+    "action": {
+        "default_popup": "index.html"
+    },
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "background": {
+        "service_worker": "src/background/index.ts",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "src/content/index.tsx"
+            ]
+        }
+    ],
+    "commands": {
+        "toggle-capture": {
+            "suggested_key": {
+                "default": "Alt+S"
+            },
+            "description": "Start Capture / Toggle Session"
+        }
+    }
+}
