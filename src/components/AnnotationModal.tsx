@@ -256,11 +256,28 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts if an input is focused (except Tab/Escape which are global nav)
+      if (document.activeElement === inputRef.current) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          setToolbarVisible(prev => !prev);
+        } else if (e.key === 'Escape') {
+          onCancel();
+        }
+        return;
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault();
         setToolbarVisible(prev => !prev);
       } else if (e.key === 'Escape') {
         onCancel();
+      } else if (e.key === 'r' || e.key === 'R') {
+        setCurrentTool('rectangle');
+      } else if (e.key === 't' || e.key === 'T') {
+        setCurrentTool('text');
+      } else if (e.key === 'v' || e.key === 'V') {
+        setCurrentTool('none');
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Only handle delete if input is not focused
         if (document.activeElement !== inputRef.current) {
@@ -304,25 +321,67 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         {toolbarVisible ? (
           <div className="bg-gray-100 px-4 py-2 border-b flex space-x-2 items-center">
             <button
-              className={`px-3 py-1.5 text-xs rounded border ${currentTool === 'none' ? 'bg-gray-300 text-black border-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              className={`p-2 rounded border transition-colors ${currentTool === 'none' ? 'bg-gray-300 text-black border-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
               onClick={() => setCurrentTool('none')}
+              title="Select / Move (V)"
             >
-              Select / Move
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                <path d="M13 13l6 6" />
+              </svg>
             </button>
             <button
-              className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'rectangle' ? 'bg-red-700' : 'bg-red-500 hover:bg-red-600'}`}
+              className={`p-2 rounded transition-colors ${currentTool === 'rectangle' ? 'bg-red-700 text-white' : 'bg-red-500 text-white hover:bg-red-600'}`}
               onClick={() => setCurrentTool('rectangle')}
+              title="Rectangle (R)"
             >
-              Rectangle
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              </svg>
             </button>
             <button
-              className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'text' ? 'bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}
+              className={`p-2 rounded transition-colors ${currentTool === 'text' ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
               onClick={() => setCurrentTool('text')}
+              title="Text (T)"
             >
-              Text
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 7V4h16v3" />
+                <path d="M9 20h6" />
+                <path d="M12 4v16" />
+              </svg>
             </button>
             <button
-              className="px-3 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 ml-2"
+              className="p-2 bg-gray-500 text-white rounded hover:bg-gray-600 ml-2"
               onClick={() => {
                 fabricCanvasRef.current?.getObjects().forEach(o => {
                   if (o !== fabricCanvasRef.current?.backgroundImage) {
@@ -331,8 +390,23 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 });
                 fabricCanvasRef.current?.requestRenderAll();
               }}
+              title="Clear All"
             >
-              Clear All
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
             </button>
 
             <span className="text-xs text-gray-500 ml-auto">
