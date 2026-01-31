@@ -158,7 +158,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (e.key === 'Enter') {
       handleSave();
     } else if (e.key === 'Escape') {
       onCancel();
@@ -174,8 +174,8 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[95vh] w-full max-w-[95vw]">
+    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-white shadow-xl overflow-hidden flex flex-col w-full h-full">
         {/* Toolbar - Hidden by default, Tab to toggle */}
         {toolbarVisible ? (
           <div className="bg-gray-100 px-4 py-2 border-b flex space-x-2 items-center">
@@ -237,7 +237,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
             ref={inputRef}
             type="text"
             className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="Describe what you found... (Ctrl+Enter to save)"
+            placeholder="Describe what you found... (Enter to save)"
             value={description}
             onChange={e => setDescription(e.target.value)}
             onKeyDown={handleKeyDown}
