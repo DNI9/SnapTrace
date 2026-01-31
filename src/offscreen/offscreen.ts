@@ -93,7 +93,7 @@ async function exportSessionToDocx(
 
   children.push(
     new Paragraph({
-      text: `Session: ${session.name}`,
+      text: session.name,
       heading: HeadingLevel.TITLE,
     }),
     new Paragraph({
@@ -178,7 +178,7 @@ async function exportSessionToPdf(
 
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
-  pdf.text(`Session: ${session.name}`, margin, yPos);
+  pdf.text(session.name, margin, yPos);
   yPos += 10;
 
   pdf.setFontSize(12);
