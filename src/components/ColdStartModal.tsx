@@ -14,6 +14,14 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
+
+    // Lock body scroll
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
