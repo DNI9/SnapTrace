@@ -72,7 +72,7 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
                 type="text"
                 id="sessionRequest"
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                placeholder="e.g., Use Case Checkout v2"
+                placeholder="Enter Session Name (e.g., Checkout v2)..."
                 value={sessionName}
                 onChange={e => setSessionName(e.target.value)}
                 onKeyDown={handleKeyDown}

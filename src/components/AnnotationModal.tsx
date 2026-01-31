@@ -17,28 +17,33 @@ interface Annotation {
   content?: string;
 }
 
+const TOOL_STORAGE_KEY = 'snaptrace-annotation-tool';
+
 const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCancel }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [description, setDescription] = useState('');
-  const [currentTool, setCurrentTool] = useState<Tool>('none');
+  const [currentTool, setCurrentTool] = useState<Tool>(() => {
+    const saved = localStorage.getItem(TOOL_STORAGE_KEY);
+    return (saved as Tool) || 'none';
+  });
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imgElement, setImgElement] = useState<HTMLImageElement | null>(null);
   const [displayScale, setDisplayScale] = useState(1);
+  const [toolbarVisible, setToolbarVisible] = useState(false);
+
+  // Persist tool selection
+  useEffect(() => {
+    localStorage.setItem(TOOL_STORAGE_KEY, currentTool);
+  }, [currentTool]);
 
   // Load and display the image
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
-      console.log(
-        'AnnotationModal: Image loaded, natural size:',
-        img.naturalWidth,
-        'x',
-        img.naturalHeight
-      );
       setImgElement(img);
       setImageLoaded(true);
     };
@@ -56,33 +61,22 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Get container dimensions
-    const containerWidth = containerRef.current.clientWidth - 32; // padding
+    const containerWidth = containerRef.current.clientWidth - 32;
     const containerHeight = containerRef.current.clientHeight - 32;
 
-    console.log('AnnotationModal: Container size:', containerWidth, 'x', containerHeight);
-
-    // Calculate scale to fit
     const imgW = imgElement.naturalWidth;
     const imgH = imgElement.naturalHeight;
     const scale = Math.min(containerWidth / imgW, containerHeight / imgH, 1);
     setDisplayScale(scale);
 
-    console.log('AnnotationModal: Display scale:', scale);
-
-    // Set canvas size
     const canvasWidth = Math.round(imgW * scale);
     const canvasHeight = Math.round(imgH * scale);
-
-    console.log('AnnotationModal: Canvas size:', canvasWidth, 'x', canvasHeight);
 
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
 
-    // Draw image
     ctx.drawImage(imgElement, 0, 0, canvasWidth, canvasHeight);
 
-    // Draw annotations
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
     ctx.font = '20px sans-serif';
@@ -112,7 +106,6 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       if (text) {
         setAnnotations(prev => [...prev, { type: 'text', x, y, content: text }]);
       }
-      setCurrentTool('none');
     }
   };
 
@@ -134,23 +127,19 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
 
     setIsDrawing(false);
     setDrawStart(null);
-    setCurrentTool('none');
   };
 
   const handleSave = () => {
     if (!canvasRef.current || !imgElement) return;
 
-    // Create a full-resolution canvas for saving
     const fullCanvas = document.createElement('canvas');
     fullCanvas.width = imgElement.naturalWidth;
     fullCanvas.height = imgElement.naturalHeight;
     const ctx = fullCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Draw original image at full size
     ctx.drawImage(imgElement, 0, 0);
 
-    // Draw annotations at full size
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
     ctx.font = '20px sans-serif';
@@ -173,10 +162,12 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       handleSave();
     } else if (e.key === 'Escape') {
       onCancel();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      setToolbarVisible(prev => !prev);
     }
   };
 
-  // Auto-focus input
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     inputRef.current?.focus();
@@ -185,32 +176,42 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   return (
     <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[95vh] w-full max-w-[95vw]">
-        {/* Toolbar */}
-        <div className="bg-gray-100 px-4 py-2 border-b flex space-x-2 items-center">
-          <button
-            className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'rectangle' ? 'bg-red-700' : 'bg-red-500 hover:bg-red-600'}`}
-            onClick={() => setCurrentTool(currentTool === 'rectangle' ? 'none' : 'rectangle')}
-          >
-            Rectangle
-          </button>
-          <button
-            className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'text' ? 'bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}
-            onClick={() => setCurrentTool(currentTool === 'text' ? 'none' : 'text')}
-          >
-            Text
-          </button>
-          {annotations.length > 0 && (
+        {/* Toolbar - Hidden by default, Tab to toggle */}
+        {toolbarVisible ? (
+          <div className="bg-gray-100 px-4 py-2 border-b flex space-x-2 items-center">
             <button
-              className="px-3 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
-              onClick={() => setAnnotations([])}
+              className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'rectangle' ? 'bg-red-700' : 'bg-red-500 hover:bg-red-600'}`}
+              onClick={() => setCurrentTool(currentTool === 'rectangle' ? 'none' : 'rectangle')}
             >
-              Clear All
+              Rectangle
             </button>
-          )}
-          <span className="text-xs text-gray-500 ml-auto">
-            {imgElement ? `${imgElement.naturalWidth}×${imgElement.naturalHeight}px` : 'Loading...'}
-          </span>
-        </div>
+            <button
+              className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'text' ? 'bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}
+              onClick={() => setCurrentTool(currentTool === 'text' ? 'none' : 'text')}
+            >
+              Text
+            </button>
+            {annotations.length > 0 && (
+              <button
+                className="px-3 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
+                onClick={() => setAnnotations([])}
+              >
+                Clear All
+              </button>
+            )}
+            <span className="text-xs text-gray-500 ml-auto">
+              {imgElement
+                ? `${imgElement.naturalWidth}×${imgElement.naturalHeight}px`
+                : 'Loading...'}
+            </span>
+            <span className="text-xs text-gray-400">Press Tab to hide</span>
+          </div>
+        ) : (
+          <div className="bg-gray-100 px-4 py-2 border-b text-center text-xs text-gray-500">
+            Press <kbd className="font-mono bg-gray-200 px-1 rounded">Tab</kbd> to show annotation
+            toolbar
+          </div>
+        )}
 
         {/* Canvas Container */}
         <div

@@ -100,3 +100,12 @@ export async function addEvidenceToSession(
   session.items.push(newItem);
   await db.put('sessions', session);
 }
+
+export async function renameSession(id: string, newName: string): Promise<void> {
+  const db = await getDB();
+  const session = await db.get('sessions', id);
+  if (!session) throw new Error('Session not found');
+
+  session.name = newName;
+  await db.put('sessions', session);
+}

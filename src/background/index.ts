@@ -5,6 +5,9 @@ console.log('SnapTrace Background Service Worker Running');
 chrome.commands.onCommand.addListener(async command => {
   if (command === 'toggle-capture') {
     handleToggleCapture();
+  } else if (command === 'open-popup') {
+    // Open the extension popup
+    chrome.action.openPopup();
   }
 });
 

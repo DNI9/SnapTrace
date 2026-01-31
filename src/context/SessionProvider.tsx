@@ -6,6 +6,7 @@ import {
   createNewSession,
   setActiveSession,
   deleteSession as deleteSessionUtil,
+  renameSession as renameSessionUtil,
 } from '../utils/storage';
 import { SessionContext } from './SessionContext';
 
@@ -64,6 +65,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await refreshSessions();
   };
 
+  const renameSession = async (id: string, newName: string) => {
+    await renameSessionUtil(id, newName);
+    await refreshSessions();
+  };
+
   return (
     <SessionContext.Provider
       value={{
@@ -72,6 +78,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         createSession,
         activateSession,
         deleteSession,
+        renameSession,
         refreshSessions,
       }}
     >

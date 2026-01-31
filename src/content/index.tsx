@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import ColdStartModal from '../components/ColdStartModal';
 import CaptureOverlay from '../components/CaptureOverlay';
 import AnnotationModal from '../components/AnnotationModal';
+import Toast from '../components/Toast';
 import styles from '../index.css?inline';
 
 interface ChromeMessage {
@@ -14,6 +15,7 @@ export const ContentApp: React.FC = () => {
   const [view, setView] = useState<'NONE' | 'COLD_START' | 'CAPTURE' | 'ANNOTATE'>('NONE');
   const [captureImage, setCaptureImage] = useState<string | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     const listener = (message: ChromeMessage) => {
@@ -44,9 +46,8 @@ export const ContentApp: React.FC = () => {
         },
       });
       if (response?.success) {
-        // Show toast?
-        console.log('Evidence Saved!');
         setView('NONE');
+        setShowToast(true);
       } else {
         console.error('Failed to save', response);
       }
@@ -55,10 +56,9 @@ export const ContentApp: React.FC = () => {
     }
   };
 
-  if (view === 'NONE') return null;
-
   return (
     <>
+      {showToast && <Toast message="Evidence Saved!" onClose={() => setShowToast(false)} />}
       {view === 'COLD_START' && <ColdStartModal onClose={() => setView('NONE')} />}
       {view === 'CAPTURE' && captureImage && (
         <CaptureOverlay image={captureImage} onCrop={handleCrop} onCancel={() => setView('NONE')} />

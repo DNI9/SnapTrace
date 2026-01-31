@@ -1,5 +1,5 @@
 {
-  "name": "temp-init",
+  "name": "snaptrace",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -17,6 +17,7 @@
     "fabric": "^7.1.0",
     "file-saver": "^2.0.5",
     "idb": "^8.0.3",
+    "jspdf": "^4.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.4.0",

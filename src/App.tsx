@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { useSession } from './context/useSession';
-import { exportSessionToDocx } from './utils/export';
+import { exportSessionToDocx, exportSessionToPdf } from './utils/export';
 import { type Session } from './utils/storage';
 
 function App() {
-  const { sessions, activeSessionId, createSession, activateSession, deleteSession } = useSession();
+  const {
+    sessions,
+    activeSessionId,
+    createSession,
+    activateSession,
+    deleteSession,
+    renameSession,
+  } = useSession();
   const [isCreating, setIsCreating] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,7 +25,7 @@ function App() {
     setIsCreating(false);
   };
 
-  const handleExport = async (e: React.MouseEvent, session: Session) => {
+  const handleExportDocx = async (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
     try {
       await exportSessionToDocx(session);
@@ -26,11 +35,41 @@ function App() {
     }
   };
 
+  const handleExportPdf = async (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation();
+    try {
+      await exportSessionToPdf(session);
+    } catch (err) {
+      console.error('PDF Export failed', err);
+      alert('PDF Export failed');
+    }
+  };
+
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this session?')) {
       await deleteSession(id);
     }
+  };
+
+  const startEditing = (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation();
+    setEditingId(session.id);
+    setEditName(session.name);
+  };
+
+  const handleRename = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+    await renameSession(id, editName);
+    setEditingId(null);
+    setEditName('');
+  };
+
+  const cancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+    setEditName('');
   };
 
   return (
@@ -92,53 +131,131 @@ function App() {
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0">
-                  <h3
-                    className={`font-medium truncate ${session.id === activeSessionId ? 'text-green-700' : 'text-gray-900'}`}
-                  >
-                    {session.name}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {new Date(session.createdAt).toLocaleDateString()} • {session.items.length}{' '}
-                    items
-                  </p>
+                  {editingId === session.id ? (
+                    <form onSubmit={e => handleRename(e, session.id)} className="flex gap-1">
+                      <input
+                        autoFocus
+                        type="text"
+                        className="flex-1 px-2 py-1 text-sm border rounded"
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <button
+                        type="submit"
+                        className="text-xs bg-blue-600 text-white px-2 py-1 rounded"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="text-xs text-gray-500 px-1"
+                      >
+                        ✕
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <h3
+                        className={`font-medium truncate ${session.id === activeSessionId ? 'text-green-700' : 'text-gray-900'}`}
+                      >
+                        {session.name}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {new Date(session.createdAt).toLocaleDateString()} • {session.items.length}{' '}
+                        items
+                      </p>
+                    </>
+                  )}
                 </div>
-                {session.id === activeSessionId && (
+                {session.id === activeSessionId && editingId !== session.id && (
                   <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full absolute top-3 right-3">
                     Active
                   </span>
                 )}
 
                 {/* Actions (visible on hover) */}
-                <div className="hidden group-hover:flex absolute bottom-2 right-2 space-x-2 bg-white/90 p-1 rounded">
-                  <button
-                    onClick={e => handleExport(e, session)}
-                    title="Export DOCX"
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      ></path>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={e => handleDelete(e, session.id)}
-                    title="Delete"
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
+                {editingId !== session.id && (
+                  <div className="hidden group-hover:flex absolute bottom-2 right-2 space-x-2 bg-white/90 p-1 rounded">
+                    <button
+                      onClick={e => startEditing(e, session)}
+                      title="Rename"
+                      className="text-gray-600 hover:text-gray-800"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={e => handleExportDocx(e, session)}
+                      title="Export DOCX"
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={e => handleExportPdf(e, session)}
+                      title="Export PDF"
+                      className="text-purple-600 hover:text-purple-800"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={e => handleDelete(e, session.id)}
+                      title="Delete"
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))

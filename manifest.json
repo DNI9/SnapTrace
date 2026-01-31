@@ -31,6 +31,12 @@
                 "default": "Alt+S"
             },
             "description": "Start Capture / Toggle Session"
+        },
+        "open-popup": {
+            "suggested_key": {
+                "default": "Alt+P"
+            },
+            "description": "Open Extension Popup"
         }
     }
 }
