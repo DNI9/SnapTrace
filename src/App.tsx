@@ -98,13 +98,25 @@ function App() {
   };
 
   return (
-    <div className="w-80 h-[500px] flex flex-col bg-gray-50">
-      <header className="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
-        <h1 className="font-bold text-lg">SnapTrace</h1>
-        <div className="flex items-center space-x-2">
+    <div className="w-96 h-[500px] flex flex-col bg-slate-50 font-sans text-slate-800">
+      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 p-4 flex justify-between items-center border-b border-slate-100 shadow-sm">
+        <div className="flex items-center gap-2">
+          {/* Logo Icon (Simple Shape) */}
+          <div className="w-6 h-6 bg-gradient-to-tr from-violet-600 to-fuchsia-500 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-md">
+            S
+          </div>
+          <h1 className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-violet-700 to-fuchsia-600">
+            SnapTrace
+          </h1>
+        </div>
+        <div className="flex items-center space-x-1">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-1 hover:bg-white/20 rounded text-white"
+            className={`p-2 rounded-lg transition-all duration-200 ${
+              showSettings
+                ? 'bg-violet-100 text-violet-700'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            }`}
             title="Settings"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,129 +136,170 @@ function App() {
           </button>
           <button
             onClick={() => setIsCreating(true)}
-            className="text-sm bg-white/20 hover:bg-white/30 px-2 py-1 rounded"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow active:scale-95"
           >
-            + New
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <span>New</span>
           </button>
         </div>
       </header>
 
       {showSettings && (
-        <div className="p-4 bg-gray-100 border-b shadow-inner">
-          <h2 className="font-semibold text-gray-700 mb-2 text-sm">Settings</h2>
-          <label className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeUrl}
-              onChange={toggleIncludeUrl}
-              className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-            />
-            <span>Include Source URL in Exports</span>
+        <div className="px-4 py-3 bg-white border-b border-slate-100 shadow-inner animate-in slide-in-from-top-2 duration-200">
+          <label className="flex items-center space-x-3 text-sm text-slate-600 cursor-pointer select-none group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={includeUrl}
+                onChange={toggleIncludeUrl}
+                className="peer h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500/30 transition-all cursor-pointer"
+              />
+            </div>
+            <span className="group-hover:text-slate-900 transition-colors">
+              Include Source URL in Exports
+            </span>
           </label>
         </div>
       )}
 
       {isCreating && (
-        <div className="p-4 bg-white border-b">
+        <div className="p-4 bg-white border-b border-slate-100 animate-in slide-in-from-top-2 duration-200">
           <form onSubmit={handleCreate}>
             <input
               autoFocus
               type="text"
-              className="w-full px-3 py-2 border rounded mb-2"
-              placeholder="Session Name"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all placeholder:text-slate-400"
+              placeholder="Enter session name..."
               value={newSessionName}
               onChange={e => setNewSessionName(e.target.value)}
             />
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-2 mt-3">
               <button
                 type="button"
                 onClick={() => setIsCreating(false)}
-                className="text-sm text-gray-500"
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-md hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
-              <button type="submit" className="text-sm bg-blue-600 text-white px-3 py-1 rounded">
-                Create
+              <button
+                type="submit"
+                className="text-xs font-medium bg-violet-600 text-white px-3 py-1.5 rounded-md hover:bg-violet-700 shadow-sm shadow-violet-200 transition-colors"
+              >
+                Create Session
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
         {sessions.length === 0 ? (
-          <div className="text-center text-gray-400 mt-10">
-            No sessions yet.
-            <br />
-            Press <kbd className="font-mono bg-gray-200 px-1 rounded">Alt+S</kbd> to start.
+          <div className="flex flex-col items-center justify-center text-center h-64 text-slate-400">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+            </div>
+            <p className="font-medium text-slate-600">No sessions yet</p>
+            <p className="text-sm mt-1">
+              Press{' '}
+              <kbd className="font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 text-xs shadow-sm">
+                Alt+S
+              </kbd>{' '}
+              to start capturing
+            </p>
           </div>
         ) : (
           sessions.map(session => (
             <div
               key={session.id}
               onClick={() => activateSession(session.id)}
-              className={`bg-white p-3 rounded shadow-sm border-l-4 cursor-pointer transition-colors group relative ${
+              className={`group relative p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
                 session.id === activeSessionId
-                  ? 'border-green-500 ring-1 ring-green-100'
-                  : 'border-transparent hover:border-gray-300'
+                  ? 'bg-white border-violet-500 ring-2 ring-violet-500/10 shadow-md shadow-violet-100'
+                  : 'bg-white border-slate-100 hover:border-violet-200 hover:shadow-md hover:-translate-y-0.5'
               }`}
             >
               <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pr-6">
                   {editingId === session.id ? (
-                    <form onSubmit={e => handleRename(e, session.id)} className="flex gap-1">
+                    <form
+                      onSubmit={e => handleRename(e, session.id)}
+                      className="flex items-center gap-2"
+                    >
                       <input
                         autoFocus
                         type="text"
-                        className="flex-1 px-2 py-1 text-sm border rounded"
+                        className="flex-1 px-2 py-1 text-sm bg-slate-50 border border-violet-300 rounded focus:outline-none focus:ring-2 focus:ring-violet-200"
                         value={editName}
                         onChange={e => setEditName(e.target.value)}
                         onClick={e => e.stopPropagation()}
                       />
                       <button
                         type="submit"
-                        className="text-xs bg-blue-600 text-white px-2 py-1 rounded"
+                        className="text-xs bg-violet-600 text-white px-2 py-1 rounded hover:bg-violet-700"
                       >
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={cancelEdit}
-                        className="text-xs text-gray-500 px-1"
+                        className="text-xs text-slate-400 hover:text-slate-600 p-1"
                       >
                         ✕
                       </button>
                     </form>
                   ) : (
                     <>
-                      <h3
-                        className={`font-medium truncate ${session.id === activeSessionId ? 'text-green-700' : 'text-gray-900'}`}
-                      >
-                        {session.name}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {new Date(session.createdAt).toLocaleDateString()} • {session.items.length}{' '}
-                        items
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3
+                          className={`font-semibold text-sm truncate ${session.id === activeSessionId ? 'text-violet-900' : 'text-slate-700 group-hover:text-violet-700'}`}
+                        >
+                          {session.name}
+                        </h3>
+                        {session.id === activeSessionId && (
+                          <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 font-medium">
+                        {session.items.length} items
+                        <span className="mx-1.5 opacity-50">|</span>
+                        <span className="font-normal opacity-75">
+                          {new Date(session.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
                       </p>
                     </>
                   )}
                 </div>
-                {session.id === activeSessionId && editingId !== session.id && (
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full absolute top-3 right-3">
-                    Active
-                  </span>
-                )}
 
-                {/* Actions (visible on hover) */}
+                {/* Actions (Floating on hover) */}
                 {editingId !== session.id && (
-                  <div className="hidden group-hover:flex absolute bottom-2 right-2 space-x-2 bg-white/90 p-1 rounded">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur pl-2 rounded-l-lg shadow-sm border border-slate-100 py-1">
                     <button
                       onClick={e => startEditing(e, session)}
                       title="Rename"
-                      className="text-gray-600 hover:text-gray-800"
+                      className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -259,13 +312,14 @@ function App() {
                         ></path>
                       </svg>
                     </button>
+                    <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
                     <button
                       onClick={e => handleExportDocx(e, session)}
                       title="Export DOCX"
-                      className="text-blue-600 hover:text-blue-800"
+                      className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -274,17 +328,17 @@ function App() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth="2"
-                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         ></path>
                       </svg>
                     </button>
                     <button
                       onClick={e => handleExportPdf(e, session)}
                       title="Export PDF"
-                      className="text-purple-600 hover:text-purple-800"
+                      className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -297,13 +351,14 @@ function App() {
                         ></path>
                       </svg>
                     </button>
+                    <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
                     <button
                       onClick={e => handleDelete(e, session.id)}
                       title="Delete"
-                      className="text-red-500 hover:text-red-700"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

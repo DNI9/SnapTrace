@@ -49,21 +49,37 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
       // Ensure this overlay captures clicks to prevent interaction with page behind
       onClick={e => e.stopPropagation()}
     >
       <div
-        className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200"
+        className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()} // Prevent close on modal click
       >
         <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Start New Session</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-violet-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Start New Session</h2>
+              <p className="text-sm text-slate-500">Capture and organize your evidence</p>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
+            <div className="mb-6">
               <label
                 htmlFor="sessionRequest"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
               >
                 Session Name
               </label>
@@ -71,8 +87,8 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
                 ref={inputRef}
                 type="text"
                 id="sessionRequest"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-                placeholder="Enter Session Name (e.g., Checkout v2)..."
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all placeholder:text-slate-400 text-slate-900"
+                placeholder="e.g., Checkout Flow v2"
                 value={sessionName}
                 onChange={e => setSessionName(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -80,18 +96,18 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
               />
             </div>
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-200 transition-colors"
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
+                className="px-5 py-2 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 shadow-sm shadow-violet-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-500 flex items-center transition-all active:scale-95"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -125,13 +141,19 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
             </div>
           </form>
         </div>
-        <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500">
-          <span>
-            Press <strong>Enter</strong> to Start
-          </span>
-          <span>
-            Press <strong>Esc</strong> to Cancel
-          </span>
+        <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400 font-medium">
+          <div className="flex items-center gap-1.5">
+            <kbd className="font-sans bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-500 shadow-sm">
+              Enter
+            </kbd>
+            <span>to Start</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <kbd className="font-sans bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-500 shadow-sm">
+              Esc
+            </kbd>
+            <span>to Cancel</span>
+          </div>
         </div>
       </div>
     </div>

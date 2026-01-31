@@ -32,7 +32,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const [imgElement, setImgElement] = useState<HTMLImageElement | null>(null); // Keep track for dimensions
-  const [toolbarVisible, setToolbarVisible] = useState(false);
+  const [toolbarVisible, setToolbarVisible] = useState(true); // Default to visible for better UX
 
   // Persist tool selection
   useEffect(() => {
@@ -124,7 +124,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
           width: 0,
           height: 0,
           fill: 'transparent',
-          stroke: 'red',
+          stroke: '#ef4444', // Red-500
           strokeWidth: 3,
           selectable: false, // Initially false while drawing
           evented: false,
@@ -137,9 +137,10 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         const text = new fabric.IText('Text', {
           left: pointer.x,
           top: pointer.y,
-          fontFamily: 'sans-serif',
-          fill: 'red',
-          fontSize: 20,
+          fontFamily: 'Inter, sans-serif',
+          fill: '#ef4444', // Red-500
+          fontSize: 24,
+          fontWeight: 'bold',
           selectable: true,
         });
         canvas.add(text);
@@ -211,34 +212,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   const handleSave = () => {
     if (!fabricCanvasRef.current || !imgElement) return;
 
-    // We need to export full resolution.
-    // Fabric's toDataURL exports what's on the canvas.
-    // Since we scaled the image to fit the view, we might want to scale it back up for the save?
-    // OR, we can just export based on the original image dimensions.
-
     const canvas = fabricCanvasRef.current;
-
-    // To export full resolution:
-    // 1. Calculate the scale factor required to return to original image size
-    // The current canvas dimensions are approx (img.naturalWidth * scale).
-    // So we need to multiplier = 1 / scale.
-    // However, fabric's toDataURL with 'multiplier' handles this.
-
-    // BUT, we set the background image with specific scaleX/scaleY.
-    // If we simply use multiplier, everything gets scaled.
-
-    // Let's rely on fabric's multiplier.
-    // Our canvas width is (img.naturalWidth * scale).
-    // We want output width to be (img.naturalWidth).
-    // So multiplier = 1 / scale.
-
-    // The background image object on canvas has .scaleX = scale.
-    // If we export with multiplier = 1/scale, the resulting image should be original size.
-    // And vector objects (rects) will be scaled up accordingly.
-
-    // We need to find the scale we used.
-    // It is stored in the background object, or we can recalc.
-
     const bgImg = canvas.backgroundImage as fabric.Image;
     if (!bgImg) return;
 
@@ -304,7 +278,6 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     if (e.key === 'Enter') {
       handleSave();
     }
-    // Other keys handled globally or default behavior (typing)
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -315,152 +288,191 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-white shadow-xl overflow-hidden flex flex-col w-full h-full">
-        {/* Toolbar */}
-        {toolbarVisible ? (
-          <div className="bg-gray-100 px-4 py-2 border-b flex space-x-2 items-center">
-            <button
-              className={`p-2 rounded border transition-colors ${currentTool === 'none' ? 'bg-gray-300 text-black border-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              onClick={() => setCurrentTool('none')}
-              title="Select / Move (V)"
+    <div className="fixed inset-0 z-[2147483647] flex flex-col bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-200">
+      {/* Floating Toolbar */}
+      <div
+        className={`absolute top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-in-out ${
+          toolbarVisible
+            ? 'translate-y-0 opacity-100'
+            : '-translate-y-10 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-2 py-1.5 flex items-center space-x-1">
+          <button
+            className={`p-2 rounded-full transition-all duration-200 ${
+              currentTool === 'none'
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
+            onClick={() => setCurrentTool('none')}
+            title="Select / Move (V)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-                <path d="M13 13l6 6" />
-              </svg>
-            </button>
-            <button
-              className={`p-2 rounded transition-colors ${currentTool === 'rectangle' ? 'bg-red-700 text-white' : 'bg-red-500 text-white hover:bg-red-600'}`}
-              onClick={() => setCurrentTool('rectangle')}
-              title="Rectangle (R)"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              </svg>
-            </button>
-            <button
-              className={`p-2 rounded transition-colors ${currentTool === 'text' ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-              onClick={() => setCurrentTool('text')}
-              title="Text (T)"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 7V4h16v3" />
-                <path d="M9 20h6" />
-                <path d="M12 4v16" />
-              </svg>
-            </button>
-            <button
-              className="p-2 bg-gray-500 text-white rounded hover:bg-gray-600 ml-2"
-              onClick={() => {
-                fabricCanvasRef.current?.getObjects().forEach(o => {
-                  if (o !== fabricCanvasRef.current?.backgroundImage) {
-                    fabricCanvasRef.current?.remove(o);
-                  }
-                });
-                fabricCanvasRef.current?.requestRenderAll();
-              }}
-              title="Clear All"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 6h18" />
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              </svg>
-            </button>
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+              <path d="M13 13l6 6" />
+            </svg>
+          </button>
 
-            <span className="text-xs text-gray-500 ml-auto">
-              {imgElement
-                ? `${imgElement.naturalWidth}×${imgElement.naturalHeight}px`
-                : 'Loading...'}
-            </span>
-            <span className="text-xs text-gray-400">Press Tab to hide</span>
-          </div>
-        ) : (
-          <div className="bg-gray-100 px-4 py-2 border-b text-center text-xs text-gray-500">
-            Press <kbd className="font-mono bg-gray-200 px-1 rounded">Tab</kbd> to show annotation
-            toolbar
-          </div>
-        )}
+          <div className="w-px h-5 bg-slate-200 mx-1"></div>
 
-        {/* Canvas Container */}
-        <div
-          ref={containerRef}
-          className="flex-1 overflow-auto bg-gray-200 flex justify-center items-center p-4 min-h-[300px]"
-          onClick={() => {
-            // Ensure canvas focus if needed
-          }}
-        >
+          <button
+            className={`p-2 rounded-full transition-all duration-200 ${
+              currentTool === 'rectangle'
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
+            onClick={() => setCurrentTool('rectangle')}
+            title="Rectangle (R)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            </svg>
+          </button>
+
+          <button
+            className={`p-2 rounded-full transition-all duration-200 ${
+              currentTool === 'text'
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
+            onClick={() => setCurrentTool('text')}
+            title="Text (T)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 7V4h16v3" />
+              <path d="M9 20h6" />
+              <path d="M12 4v16" />
+            </svg>
+          </button>
+
+          <div className="w-px h-5 bg-slate-200 mx-1"></div>
+
+          <button
+            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
+            onClick={() => {
+              fabricCanvasRef.current?.getObjects().forEach(o => {
+                if (o !== fabricCanvasRef.current?.backgroundImage) {
+                  fabricCanvasRef.current?.remove(o);
+                }
+              });
+              fabricCanvasRef.current?.requestRenderAll();
+            }}
+            title="Clear All"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
+        <div className="text-center mt-2">
+          <span className="bg-black/50 backdrop-blur text-white/80 text-[10px] px-2 py-0.5 rounded-full font-medium">
+            Tab to toggle
+          </span>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-hidden flex justify-center items-center p-8 active:cursor-move"
+      >
+        <div className="relative shadow-2xl rounded-sm overflow-hidden ring-1 ring-white/10">
           <canvas ref={canvasElRef} />
         </div>
+      </div>
 
-        {/* Footer / Input */}
-        <div className="p-4 bg-white border-t">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <input
-            ref={inputRef}
-            type="text"
-            className="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="Describe what you found... (Enter to save)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-          />
-          <div className="flex justify-end mt-3 space-x-3">
-            <div className="text-xs text-gray-400 flex items-center mr-auto">
-              Tips: Use 'Delete' key to remove selected annotations.
+      {/* Footer Controls */}
+      <div className="bg-white border-t border-slate-100 p-4 md:px-8">
+        <div className="max-w-4xl mx-auto w-full flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative w-full flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg
+                className="w-4 h-4 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                ></path>
+              </svg>
             </div>
+            <input
+              ref={inputRef}
+              type="text"
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all placeholder:text-slate-400 text-slate-900 text-sm font-medium"
+              placeholder="Describe what you found... (Enter to save)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto">
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+              className="flex-1 md:flex-none px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors text-sm"
             >
               Discard
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="flex-1 md:flex-none px-6 py-2.5 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 shadow-md shadow-violet-200 active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
             >
-              Save Evidence
+              <span>Save Evidence</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M5 13l4 4L19 7"
+                ></path>
+              </svg>
             </button>
           </div>
         </div>
