@@ -119,6 +119,8 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         const rect = new fabric.Rect({
           left: pointer.x,
           top: pointer.y,
+          originX: 'left',
+          originY: 'top',
           width: 0,
           height: 0,
           fill: 'transparent',
