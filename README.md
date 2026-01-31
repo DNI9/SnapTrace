@@ -1,73 +1,93 @@
-# React + TypeScript + Vite
+# SnapTrace
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> A high-velocity evidence collector for manual QA testing.
 
-Currently, two official plugins are available:
+SnapTrace is a Chrome/Edge Browser Extension designed to streamline the workflow of manual QA testers. It allows you to capture, annotate, and organize screenshots into distinct "Sessions" using primarily keyboard shortcuts, minimizing context switching and speeding up the documentation process.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## React Compiler
+- **Keyboard-First Workflow**: Control almost everything without touching the mouse.
+- **Session Management**: Organize evidence into distinct sessions (e.g., "Login Tests", "Checkout v2").
+- **Rapid Capture**: Instantly capture screenshots with `Alt+S`.
+- **Built-in Annotation**: Annotate screenshots with rectangles, arrows, and text.
+- **Export to DOCX/PDF**: Generate professional reports with a single click.
+- **Persistent Storage**: Uses IndexedDB to store large amounts of evidence without the 5MB localStorage limit.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Installation (Development)
 
-## Expanding the ESLint configuration
+1.  **Clone the repository:**
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+    ```bash
+    git clone https://github.com/yourusername/snaptrace.git
+    cd snaptrace
+    ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+2.  **Install dependencies:**
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+    ```bash
+    npm install
+    ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+3.  **Build the extension:**
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+    ```bash
+    npm run build
+    ```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+    Or run in watch mode for development:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+    ```bash
+    npm run dev
+    ```
+
+4.  **Load into Chrome/Edge:**
+    - Open `chrome://extensions/`
+    - Enable **Developer mode** (top right toggle).
+    - Click **Load unpacked**.
+    - Select the `dist` folder in your project directory.
+
+## 📖 Usage Guide
+
+### Shortcuts
+
+| Action                             | Shortcut     | Context          |
+| :--------------------------------- | :----------- | :--------------- |
+| **Start Capture / Create Session** | `Alt+S`      | Global (Browser) |
+| **Open Popup / Manage Sessions**   | `Alt+P`      | Global (Browser) |
+| **Save Notification**              | `Ctrl+Enter` | Annotation Modal |
+| **Cancel Capture**                 | `Esc`        | Annotation Modal |
+| **Viewport Snap**                  | `Enter`      | Capture Mode     |
+
+### Workflows
+
+#### 1. Cold Start (New Session)
+
+- Press `Alt+S` when no session is active.
+- Enter a name for the new session (e.g., "Smoke Test").
+- Press `Enter` to start capturing immediately.
+
+#### 2. Rapid Capture
+
+- Press `Alt+S` during an active session.
+- Drag to select an area OR press `Enter` to capture the visible viewport.
+- The Annotation Modal appears.
+- Add annotations if needed.
+- Type a description and press `Ctrl+Enter` to save.
+
+#### 3. Exporting Evidence
+
+- Click the extension icon or press `Alt+P`.
+- Click **Export** on the desired session.
+- Choose **DOCX** or **PDF** format.
+
+## 💻 Tech Stack
+
+- **Core**: React 19, TypeScript, Vite
+- **Styling**: Tailwind CSS
+- **Storage**: IndexedDB (idb)
+- **Canvas**: Fabric.js
+- **Export**: docx, jspdf
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
