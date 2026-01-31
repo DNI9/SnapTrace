@@ -1,12 +1,48 @@
-import { createNewSession, getActiveSessionId, addEvidenceToSession } from '../utils/storage';
+import {
+  createNewSession,
+  getActiveSessionId,
+  addEvidenceToSession,
+  type Session,
+} from '../utils/storage';
 
 console.log('SnapTrace Background Service Worker Running');
+
+// Offscreen document management
+const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen/offscreen.html';
+let creatingOffscreen: Promise<void> | null = null;
+
+async function hasOffscreenDocument(): Promise<boolean> {
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+    documentUrls: [chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)],
+  });
+  return contexts.length > 0;
+}
+
+async function setupOffscreenDocument(): Promise<void> {
+  if (await hasOffscreenDocument()) {
+    return;
+  }
+
+  if (creatingOffscreen) {
+    await creatingOffscreen;
+    return;
+  }
+
+  creatingOffscreen = chrome.offscreen.createDocument({
+    url: OFFSCREEN_DOCUMENT_PATH,
+    reasons: [chrome.offscreen.Reason.DOM_PARSER],
+    justification: 'Export session data to PDF/DOCX using DOM APIs',
+  });
+
+  await creatingOffscreen;
+  creatingOffscreen = null;
+}
 
 chrome.commands.onCommand.addListener(async command => {
   if (command === 'toggle-capture') {
     handleToggleCapture();
   } else if (command === 'open-popup') {
-    // Open the extension popup
     chrome.action.openPopup();
   }
 });
@@ -19,7 +55,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         console.error('Create Session Error:', err);
         sendResponse({ success: false, error: err.message });
       });
-    return true; // async response
+    return true;
   }
   if (message.type === 'SAVE_EVIDENCE') {
     handleSaveEvidence(message.payload)
@@ -30,7 +66,48 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
     return true;
   }
+  if (message.type === 'EXPORT_DOCX') {
+    const session: Session = message.payload.session;
+    handleExport('OFFSCREEN_EXPORT_DOCX', session)
+      .then(() => sendResponse({ success: true }))
+      .catch(err => {
+        console.error('DOCX Export Error:', err);
+        sendResponse({ success: false, error: err.message });
+      });
+    return true;
+  }
+  if (message.type === 'EXPORT_PDF') {
+    const session: Session = message.payload.session;
+    handleExport('OFFSCREEN_EXPORT_PDF', session)
+      .then(() => sendResponse({ success: true }))
+      .catch(err => {
+        console.error('PDF Export Error:', err);
+        sendResponse({ success: false, error: err.message });
+      });
+    return true;
+  }
 });
+
+async function handleExport(
+  type: 'OFFSCREEN_EXPORT_DOCX' | 'OFFSCREEN_EXPORT_PDF',
+  session: Session
+): Promise<void> {
+  await setupOffscreenDocument();
+  const response = await chrome.runtime.sendMessage({
+    type,
+    payload: { session },
+  });
+  if (!response?.success) {
+    throw new Error(response?.error || 'Export failed');
+  }
+
+  // Download the file using the data URL returned from offscreen document
+  await chrome.downloads.download({
+    url: response.dataUrl,
+    filename: response.filename,
+    saveAs: true,
+  });
+}
 
 async function handleToggleCapture() {
   console.log('Toggle Capture Triggered');
@@ -47,7 +124,6 @@ async function handleToggleCapture() {
 
   if (activeId) {
     console.log('Active Session:', activeId);
-    // Capture the visible tab
     try {
       const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
       chrome.tabs.sendMessage(tab.id, {
@@ -68,22 +144,9 @@ async function handleCreateSession(name: string) {
   const session = await createNewSession(name);
   console.log('Session Created:', session);
 
-  // After creation, immediately trigger capture mode?
-  // PRD 4.1. "System Action: 3. Immediately transitions to Capture Mode ... Do not make the user press the shortcut again."
-
-  // So we should send START_CAPTURE message to the tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) {
     const tabId = tab.id;
-    // Send capture command again to trigger the flow above
-    // But we can't easily call handleToggleCapture from here with correct context if we need windowId from tab query again
-    // Easier to just call captureVisibleTab here too or refactor.
-
-    // Let's refactor capture logic? Or just duplicate for now to be safe.
-    // Actually, if we just set activeSessionId, the user can press Alt+S.
-    // But PRD says "Immediately transitions".
-
-    // We need to wait for storage to sync?
     setTimeout(async () => {
       try {
         const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });

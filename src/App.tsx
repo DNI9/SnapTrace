@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useSession } from './context/useSession';
-import { exportSessionToDocx, exportSessionToPdf } from './utils/export';
 import { type Session } from './utils/storage';
 
 function App() {
@@ -28,7 +27,14 @@ function App() {
   const handleExportDocx = async (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
     try {
-      await exportSessionToDocx(session);
+      // Delegate to background worker to prevent browser crash
+      const response = await chrome.runtime.sendMessage({
+        type: 'EXPORT_DOCX',
+        payload: { session },
+      });
+      if (!response?.success) {
+        throw new Error(response?.error || 'Export failed');
+      }
     } catch (err) {
       console.error('Export failed', err);
       alert('Export failed');
@@ -38,7 +44,14 @@ function App() {
   const handleExportPdf = async (e: React.MouseEvent, session: Session) => {
     e.stopPropagation();
     try {
-      await exportSessionToPdf(session);
+      // Delegate to background worker to prevent browser crash
+      const response = await chrome.runtime.sendMessage({
+        type: 'EXPORT_PDF',
+        payload: { session },
+      });
+      if (!response?.success) {
+        throw new Error(response?.error || 'Export failed');
+      }
     } catch (err) {
       console.error('PDF Export failed', err);
       alert('PDF Export failed');

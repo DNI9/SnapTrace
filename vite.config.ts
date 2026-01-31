@@ -11,4 +11,11 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        offscreen: 'src/offscreen/offscreen.html',
+      },
+    },
+  },
 });
