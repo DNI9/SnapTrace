@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import * as fabric from 'fabric';
 
 interface AnnotationModalProps {
   image: string;
@@ -8,167 +9,288 @@ interface AnnotationModalProps {
 
 type Tool = 'none' | 'rectangle' | 'text';
 
-interface Annotation {
-  type: 'rectangle' | 'text';
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  content?: string;
+interface FabricEvent {
+  scenePoint: { x: number; y: number };
+  e: Event;
 }
 
 const TOOL_STORAGE_KEY = 'snaptrace-annotation-tool';
 
 const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCancel }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasElRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const [description, setDescription] = useState('');
   const [currentTool, setCurrentTool] = useState<Tool>(() => {
     const saved = localStorage.getItem(TOOL_STORAGE_KEY);
     return (saved as Tool) || 'none';
   });
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imgElement, setImgElement] = useState<HTMLImageElement | null>(null);
-  const [displayScale, setDisplayScale] = useState(1);
+
+  // State for rectangle drawing
+  const isDrawingRef = useRef(false);
+  const activeObjRef = useRef<fabric.Rect | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const [imgElement, setImgElement] = useState<HTMLImageElement | null>(null); // Keep track for dimensions
   const [toolbarVisible, setToolbarVisible] = useState(false);
 
   // Persist tool selection
   useEffect(() => {
     localStorage.setItem(TOOL_STORAGE_KEY, currentTool);
+
+    // Update canvas selection capability based on tool
+    if (fabricCanvasRef.current) {
+      fabricCanvasRef.current.selection = currentTool === 'none';
+      fabricCanvasRef.current.defaultCursor = currentTool === 'none' ? 'default' : 'crosshair';
+      fabricCanvasRef.current.forEachObject(obj => {
+        obj.selectable = currentTool === 'none';
+        obj.evented = currentTool === 'none'; // distinct from selectable in some versions, basically 'interactive'
+      });
+      fabricCanvasRef.current.requestRenderAll();
+    }
   }, [currentTool]);
 
-  // Load and display the image
+  // Initialize Fabric Canvas and Image
   useEffect(() => {
+    if (!canvasElRef.current || !containerRef.current) return;
+
+    // Create fabric canvas
+    const canvas = new fabric.Canvas(canvasElRef.current, {
+      selection: false, // defaults, effectively overridden by tool effect
+      defaultCursor: 'default',
+    });
+    fabricCanvasRef.current = canvas;
+
+    // Load image
     const img = new Image();
+    img.src = image;
     img.onload = () => {
       setImgElement(img);
-      setImageLoaded(true);
-    };
-    img.onerror = e => {
-      console.error('AnnotationModal: Failed to load image', e);
-    };
-    img.src = image;
-  }, [image]);
+      const containerW = containerRef.current?.clientWidth || 800;
+      const containerH = containerRef.current?.clientHeight || 600;
 
-  // Draw the image and annotations on canvas
+      const scale = Math.min(
+        (containerW - 40) / img.naturalWidth,
+        (containerH - 40) / img.naturalHeight,
+        1
+      );
+
+      const finalW = img.naturalWidth * scale;
+      const finalH = img.naturalHeight * scale;
+
+      canvas.setDimensions({ width: finalW, height: finalH });
+
+      const fImg = new fabric.Image(img);
+      fImg.set({
+        originX: 'left',
+        originY: 'top',
+        scaleX: scale,
+        scaleY: scale,
+        selectable: false,
+        evented: false,
+      });
+
+      canvas.backgroundImage = fImg;
+      canvas.requestRenderAll();
+    };
+
+    return () => {
+      canvas.dispose();
+      fabricCanvasRef.current = null;
+    };
+  }, [image]); // Re-init if image changes (unlikely in modal lifespan but correct)
+
+  // Event Listeners for Drawing
   useEffect(() => {
-    if (!imageLoaded || !imgElement || !canvasRef.current || !containerRef.current) return;
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const handleMouseDown = (opt: FabricEvent) => {
+      if (currentTool === 'none') return;
 
-    const containerWidth = containerRef.current.clientWidth - 32;
-    const containerHeight = containerRef.current.clientHeight - 32;
+      // Fabric 6+ passes pointer/scenePoint in the options
+      const pointer = opt.scenePoint;
+      if (!pointer) return;
 
-    const imgW = imgElement.naturalWidth;
-    const imgH = imgElement.naturalHeight;
-    const scale = Math.min(containerWidth / imgW, containerHeight / imgH, 1);
-    setDisplayScale(scale);
+      if (currentTool === 'rectangle') {
+        isDrawingRef.current = true;
+        startPosRef.current = { x: pointer.x, y: pointer.y };
 
-    const canvasWidth = Math.round(imgW * scale);
-    const canvasHeight = Math.round(imgH * scale);
+        const rect = new fabric.Rect({
+          left: pointer.x,
+          top: pointer.y,
+          width: 0,
+          height: 0,
+          fill: 'transparent',
+          stroke: 'red',
+          strokeWidth: 3,
+          selectable: false, // Initially false while drawing
+          evented: false,
+        });
 
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-
-    ctx.drawImage(imgElement, 0, 0, canvasWidth, canvasHeight);
-
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    ctx.font = '20px sans-serif';
-    ctx.fillStyle = 'red';
-
-    annotations.forEach(ann => {
-      if (ann.type === 'rectangle' && ann.width && ann.height) {
-        ctx.strokeRect(ann.x * scale, ann.y * scale, ann.width * scale, ann.height * scale);
-      } else if (ann.type === 'text' && ann.content) {
-        ctx.fillText(ann.content, ann.x * scale, ann.y * scale);
+        activeObjRef.current = rect;
+        canvas.add(rect);
+      } else if (currentTool === 'text') {
+        // For text, we just click and add
+        const text = new fabric.IText('Text', {
+          left: pointer.x,
+          top: pointer.y,
+          fontFamily: 'sans-serif',
+          fill: 'red',
+          fontSize: 20,
+          selectable: true,
+        });
+        canvas.add(text);
+        canvas.setActiveObject(text);
+        text.enterEditing();
+        text.selectAll();
+        setCurrentTool('none'); // Switch back to select after adding text
       }
-    });
-  }, [imageLoaded, imgElement, annotations]);
+    };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (currentTool === 'none' || !canvasRef.current) return;
+    const handleMouseMove = (opt: FabricEvent) => {
+      if (
+        !isDrawingRef.current ||
+        !activeObjRef.current ||
+        currentTool !== 'rectangle' ||
+        !startPosRef.current
+      )
+        return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / displayScale;
-    const y = (e.clientY - rect.top) / displayScale;
+      const pointer = opt.scenePoint;
+      if (!pointer) return;
 
-    if (currentTool === 'rectangle') {
-      setIsDrawing(true);
-      setDrawStart({ x, y });
-    } else if (currentTool === 'text') {
-      const text = prompt('Enter text:');
-      if (text) {
-        setAnnotations(prev => [...prev, { type: 'text', x, y, content: text }]);
+      const startX = startPosRef.current.x;
+      const startY = startPosRef.current.y;
+
+      const width = Math.abs(pointer.x - startX);
+      const height = Math.abs(pointer.y - startY);
+
+      const left = Math.min(startX, pointer.x);
+      const top = Math.min(startY, pointer.y);
+
+      activeObjRef.current.set({ left, top, width, height });
+      canvas.requestRenderAll();
+    };
+
+    const handleMouseUp = () => {
+      if (isDrawingRef.current && currentTool === 'rectangle') {
+        isDrawingRef.current = false;
+        if (activeObjRef.current) {
+          // Determine if it was just a click (too small)
+          if (activeObjRef.current.width! < 5 || activeObjRef.current.height! < 5) {
+            canvas.remove(activeObjRef.current);
+          } else {
+            activeObjRef.current.setCoords();
+            // Make it selectable now that drawing is done, IF we want to auto-switch or keep drawing?
+            // Let's keep drawing mode active for multiple rects, but they become selectable only when tool changes to 'none'.
+          }
+          activeObjRef.current = null;
+        }
       }
-    }
-  };
+    };
 
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !drawStart || !canvasRef.current) return;
+    // Remove existing listeners to avoid dupes if re-running effect
+    canvas.off('mouse:down');
+    canvas.off('mouse:move');
+    canvas.off('mouse:up');
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const endX = (e.clientX - rect.left) / displayScale;
-    const endY = (e.clientY - rect.top) / displayScale;
+    canvas.on('mouse:down', handleMouseDown);
+    canvas.on('mouse:move', handleMouseMove);
+    canvas.on('mouse:up', handleMouseUp);
 
-    const x = Math.min(drawStart.x, endX);
-    const y = Math.min(drawStart.y, endY);
-    const width = Math.abs(endX - drawStart.x);
-    const height = Math.abs(endY - drawStart.y);
-
-    if (width > 5 && height > 5) {
-      setAnnotations(prev => [...prev, { type: 'rectangle', x, y, width, height }]);
-    }
-
-    setIsDrawing(false);
-    setDrawStart(null);
-  };
+    return () => {
+      canvas.off('mouse:down', handleMouseDown);
+      canvas.off('mouse:move', handleMouseMove);
+      canvas.off('mouse:up', handleMouseUp);
+    };
+  }, [currentTool]); // Re-bind when tool changes
 
   const handleSave = () => {
-    if (!canvasRef.current || !imgElement) return;
+    if (!fabricCanvasRef.current || !imgElement) return;
 
-    const fullCanvas = document.createElement('canvas');
-    fullCanvas.width = imgElement.naturalWidth;
-    fullCanvas.height = imgElement.naturalHeight;
-    const ctx = fullCanvas.getContext('2d');
-    if (!ctx) return;
+    // We need to export full resolution.
+    // Fabric's toDataURL exports what's on the canvas.
+    // Since we scaled the image to fit the view, we might want to scale it back up for the save?
+    // OR, we can just export based on the original image dimensions.
 
-    ctx.drawImage(imgElement, 0, 0);
+    const canvas = fabricCanvasRef.current;
 
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    ctx.font = '20px sans-serif';
-    ctx.fillStyle = 'red';
+    // To export full resolution:
+    // 1. Calculate the scale factor required to return to original image size
+    // The current canvas dimensions are approx (img.naturalWidth * scale).
+    // So we need to multiplier = 1 / scale.
+    // However, fabric's toDataURL with 'multiplier' handles this.
 
-    annotations.forEach(ann => {
-      if (ann.type === 'rectangle' && ann.width && ann.height) {
-        ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
-      } else if (ann.type === 'text' && ann.content) {
-        ctx.fillText(ann.content, ann.x, ann.y);
-      }
+    // BUT, we set the background image with specific scaleX/scaleY.
+    // If we simply use multiplier, everything gets scaled.
+
+    // Let's rely on fabric's multiplier.
+    // Our canvas width is (img.naturalWidth * scale).
+    // We want output width to be (img.naturalWidth).
+    // So multiplier = 1 / scale.
+
+    // The background image object on canvas has .scaleX = scale.
+    // If we export with multiplier = 1/scale, the resulting image should be original size.
+    // And vector objects (rects) will be scaled up accordingly.
+
+    // We need to find the scale we used.
+    // It is stored in the background object, or we can recalc.
+
+    const bgImg = canvas.backgroundImage as fabric.Image;
+    if (!bgImg) return;
+
+    const currentScale = bgImg.scaleX || 1;
+    const multiplier = 1 / currentScale;
+
+    const dataUrl = canvas.toDataURL({
+      format: 'png',
+      multiplier: multiplier,
     });
 
-    const dataUrl = fullCanvas.toDataURL('image/png');
     onSave(description, dataUrl);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        setToolbarVisible(prev => !prev);
+      } else if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Only handle delete if input is not focused
+        if (document.activeElement !== inputRef.current) {
+          const canvas = fabricCanvasRef.current;
+          if (canvas) {
+            const active = canvas.getActiveObjects();
+            if (active.length) {
+              canvas.remove(...active);
+              canvas.discardActiveObject();
+              canvas.requestRenderAll();
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [onCancel]);
+
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSave();
-    } else if (e.key === 'Escape') {
-      onCancel();
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      setToolbarVisible(prev => !prev);
     }
+    // Other keys handled globally or default behavior (typing)
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -176,29 +298,41 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   return (
     <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-white shadow-xl overflow-hidden flex flex-col w-full h-full">
-        {/* Toolbar - Hidden by default, Tab to toggle */}
+        {/* Toolbar */}
         {toolbarVisible ? (
           <div className="bg-gray-100 px-4 py-2 border-b flex space-x-2 items-center">
             <button
+              className={`px-3 py-1.5 text-xs rounded border ${currentTool === 'none' ? 'bg-gray-300 text-black border-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              onClick={() => setCurrentTool('none')}
+            >
+              Select / Move
+            </button>
+            <button
               className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'rectangle' ? 'bg-red-700' : 'bg-red-500 hover:bg-red-600'}`}
-              onClick={() => setCurrentTool(currentTool === 'rectangle' ? 'none' : 'rectangle')}
+              onClick={() => setCurrentTool('rectangle')}
             >
               Rectangle
             </button>
             <button
               className={`px-3 py-1.5 text-white text-xs rounded ${currentTool === 'text' ? 'bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}
-              onClick={() => setCurrentTool(currentTool === 'text' ? 'none' : 'text')}
+              onClick={() => setCurrentTool('text')}
             >
               Text
             </button>
-            {annotations.length > 0 && (
-              <button
-                className="px-3 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
-                onClick={() => setAnnotations([])}
-              >
-                Clear All
-              </button>
-            )}
+            <button
+              className="px-3 py-1.5 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 ml-2"
+              onClick={() => {
+                fabricCanvasRef.current?.getObjects().forEach(o => {
+                  if (o !== fabricCanvasRef.current?.backgroundImage) {
+                    fabricCanvasRef.current?.remove(o);
+                  }
+                });
+                fabricCanvasRef.current?.requestRenderAll();
+              }}
+            >
+              Clear All
+            </button>
+
             <span className="text-xs text-gray-500 ml-auto">
               {imgElement
                 ? `${imgElement.naturalWidth}×${imgElement.naturalHeight}px`
@@ -217,17 +351,11 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         <div
           ref={containerRef}
           className="flex-1 overflow-auto bg-gray-200 flex justify-center items-center p-4 min-h-[300px]"
+          onClick={() => {
+            // Ensure canvas focus if needed
+          }}
         >
-          {imageLoaded ? (
-            <canvas
-              ref={canvasRef}
-              className={`shadow-lg ${currentTool !== 'none' ? 'cursor-crosshair' : 'cursor-default'}`}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-            />
-          ) : (
-            <div className="text-gray-500">Loading image...</div>
-          )}
+          <canvas ref={canvasElRef} />
         </div>
 
         {/* Footer / Input */}
@@ -240,9 +368,12 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
             placeholder="Describe what you found... (Enter to save)"
             value={description}
             onChange={e => setDescription(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleInputKeyDown}
           />
           <div className="flex justify-end mt-3 space-x-3">
+            <div className="text-xs text-gray-400 flex items-center mr-auto">
+              Tips: Use 'Delete' key to remove selected annotations.
+            </div>
             <button
               onClick={onCancel}
               className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
