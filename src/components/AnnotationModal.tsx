@@ -482,31 +482,31 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[2147483647] flex flex-col bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[2147483647] flex flex-col bg-slate-50 animate-in fade-in duration-200 font-sans text-slate-800">
+      {/* Header (Removed) */}
+
       {/* Content Wrapper */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar Toolbar */}
         <div
-          className={`ml-4 self-center z-50 transition-all duration-300 ease-in-out ${
+          className={`absolute left-6 top-6 z-50 transition-all duration-300 ease-in-out ${
             toolbarVisible
               ? 'translate-x-0 opacity-100'
               : '-translate-x-10 opacity-0 pointer-events-none'
           }`}
         >
-          <div className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-1 py-1.5 flex flex-col items-center space-y-1">
+          <div className="bg-white/90 backdrop-blur-xl border border-white/50 shadow-xl rounded-full px-2 py-3 flex flex-col items-center space-y-4">
             <button
-              className={`p-2 rounded-full transition-all duration-200 ${
-                currentTool === 'none'
-                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200 w-12 ${
+                currentTool === 'none' ? 'text-violet-600' : 'text-slate-400 hover:text-slate-600'
               }`}
               onClick={() => setCurrentTool('none')}
               title="Select / Move (V)"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -515,25 +515,23 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 strokeLinejoin="round"
               >
                 <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-                <path d="M13 13l6 6" />
               </svg>
+              <span className="text-[10px] font-medium">Select</span>
             </button>
 
-            <div className="w-5 h-px bg-slate-200 my-1"></div>
-
             <button
-              className={`p-2 rounded-full transition-all duration-200 ${
+              className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-12 ${
                 currentTool === 'rectangle'
                   ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
               onClick={() => setCurrentTool('rectangle')}
               title="Rectangle (R)"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -543,21 +541,20 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
               >
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               </svg>
+              <span className="text-[10px] font-medium">Rect</span>
             </button>
 
             <button
-              className={`p-2 rounded-full transition-all duration-200 ${
-                currentTool === 'text'
-                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200 w-12 ${
+                currentTool === 'text' ? 'text-violet-600' : 'text-slate-400 hover:text-slate-600'
               }`}
               onClick={() => setCurrentTool('text')}
               title="Text (T)"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -569,29 +566,43 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 <path d="M9 20h6" />
                 <path d="M12 4v16" />
               </svg>
+              <span className="text-[10px] font-medium">Text</span>
             </button>
 
+            {/* Timer / Step Placeholder to match design */}
             <button
-              className={`p-2 rounded-full transition-all duration-200 ${
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200 w-12 ${
                 currentTool === 'step'
-                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  ? 'text-violet-600' // If we keep step functional
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
-              onClick={() => setCurrentTool('step')}
+              onClick={() => setCurrentTool('step')} // Or generic timer
               title="Step Number (S)"
             >
-              <div className="w-[18px] h-[18px] flex items-center justify-center border-2 border-current rounded-full text-[10px] font-bold">
-                1
-              </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span className="text-[10px] font-medium">Timer</span>
             </button>
 
-            <div className="w-5 h-px bg-slate-200 my-1"></div>
+            <div className="w-8 h-px bg-slate-100 my-1"></div>
 
             <button
-              className={`p-2 rounded-full transition-all duration-200 ${
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200 w-12 ${
                 historyLength <= 1
                   ? 'text-slate-300 cursor-not-allowed'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
               onClick={handleUndo}
               disabled={historyLength <= 1}
@@ -611,13 +622,14 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 <path d="M9 14L4 9l5-5" />
                 <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
               </svg>
+              <span className="text-[10px] font-medium">Undo</span>
             </button>
 
             <button
-              className={`p-2 rounded-full transition-all duration-200 ${
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200 w-12 ${
                 redoLength === 0
                   ? 'text-slate-300 cursor-not-allowed'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
               onClick={handleRedo}
               disabled={redoLength === 0}
@@ -637,12 +649,11 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 <path d="M15 14l5-5-5-5" />
                 <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13" />
               </svg>
+              <span className="text-[10px] font-medium">Redo</span>
             </button>
 
-            <div className="w-5 h-px bg-slate-200 my-1"></div>
-
             <button
-              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
+              className="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-rose-500 rounded-lg transition-colors w-12"
               onClick={() => {
                 fabricCanvasRef.current?.getObjects().forEach(o => {
                   if (o !== fabricCanvasRef.current?.backgroundImage) {
@@ -669,6 +680,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
               </svg>
+              <span className="text-[10px] font-medium">Delete</span>
             </button>
           </div>
         </div>
@@ -676,74 +688,85 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         {/* Main Content Area */}
         <div
           ref={containerRef}
-          className="flex-1 overflow-hidden flex justify-center items-center p-8 active:cursor-move"
+          className="flex-1 overflow-hidden flex justify-center items-center p-8 active:cursor-move bg-slate-50 relative"
         >
-          <div className="relative shadow-2xl rounded-sm overflow-hidden ring-1 ring-white/10">
+          {/* Canvas Container */}
+          <div className="relative shadow-2xl rounded-lg overflow-hidden ring-1 ring-black/5 bg-white">
             <canvas ref={canvasElRef} />
           </div>
         </div>
       </div>
 
       {/* Footer Controls */}
-      <div className="bg-white border-t border-slate-100 p-4 md:px-8">
-        <div className="max-w-4xl mx-auto w-full flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative w-full flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="w-4 h-4 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                ></path>
-              </svg>
-            </div>
-            <input
-              ref={inputRef}
-              type="text"
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all placeholder:text-slate-400 text-slate-900 text-sm font-medium"
-              placeholder="Describe what you found... (Ctrl+Enter to save)"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                  handleSave();
-                }
-              }}
-              disabled={isSaving}
-            />
-          </div>
+      <div className="bg-white border-t border-slate-200 relative">
+        {/* Floating Badge */}
+        {/* Floating Badge (Removed) */}
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button
-              onClick={onCancel}
-              className="flex-1 md:flex-none px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors text-sm"
-              disabled={isSaving}
-            >
-              Discard
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`flex-1 md:flex-none px-6 py-2.5 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 shadow-md shadow-violet-200 active:scale-95 transition-all text-sm flex items-center justify-center gap-2 ${isSaving ? 'opacity-70 cursor-wait' : ''}`}
-            >
-              <span>{isSaving ? 'Saving...' : 'Save Evidence'}</span>
-              {!isSaving && (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-4 md:px-8">
+          <div className="max-w-[1400px] mx-auto w-full flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative w-full flex-1">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg
+                  className="w-5 h-5 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M5 13l4 4L19 7"
+                    d="M4 6h16M4 12h16M4 18h7"
                   ></path>
                 </svg>
-              )}
-            </button>
+              </div>
+              <input
+                ref={inputRef}
+                type="text"
+                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all placeholder:text-slate-400 text-slate-700 text-base"
+                placeholder="Describe what you found..."
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    handleSave();
+                  }
+                }}
+                disabled={isSaving}
+              />
+              <div className="absolute inset-y-0 right-3 flex items-center">
+                <span className="text-xs text-slate-400 font-medium">Ctrl+Enter to save</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 w-full md:w-auto pl-4 border-l border-slate-100">
+              <button
+                onClick={onCancel}
+                className="px-4 py-2.5 text-slate-500 font-medium hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-colors text-sm"
+                disabled={isSaving}
+              >
+                Discard
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`px-8 py-3 bg-violet-600 text-white font-semibold rounded-lg hover:bg-violet-700 shadow-lg shadow-violet-200 active:scale-95 transition-all text-sm flex items-center gap-2 ${isSaving ? 'opacity-70 cursor-wait' : ''}`}
+              >
+                <span>{isSaving ? 'Saving...' : 'Save Evidence'}</span>
+                {!isSaving && (
+                  <div className="bg-white/20 rounded-full p-0.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="3"
+                        d="M5 13l4 4L19 7"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
