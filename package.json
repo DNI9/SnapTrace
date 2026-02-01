@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "release": "node scripts/release.cjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
