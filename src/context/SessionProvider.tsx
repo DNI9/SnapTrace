@@ -5,7 +5,8 @@ import {
   getActiveSessionId,
   createNewSession,
   setActiveSession,
-  deleteSession as deleteSessionUtil,
+  archiveSession as archiveSessionUtil,
+  permanentlyDeleteSession,
   renameSession as renameSessionUtil,
 } from '../utils/storage';
 import { SessionContext } from './SessionContext';
@@ -60,8 +61,13 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveSessionId(id);
   };
 
-  const deleteSession = async (id: string) => {
-    await deleteSessionUtil(id);
+  const archiveSession = async (id: string, maxArchivedSessions: number = 10) => {
+    await archiveSessionUtil(id, maxArchivedSessions);
+    await refreshSessions();
+  };
+
+  const removeSession = async (id: string) => {
+    await permanentlyDeleteSession(id);
     await refreshSessions();
   };
 
@@ -77,7 +83,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         activeSessionId,
         createSession,
         activateSession,
-        deleteSession,
+        archiveSession,
+        removeSession,
         renameSession,
         refreshSessions,
       }}

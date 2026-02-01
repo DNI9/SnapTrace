@@ -6,7 +6,8 @@ export interface SessionContextType {
   activeSessionId: string | null;
   createSession: (name: string) => Promise<void>;
   activateSession: (id: string) => Promise<void>;
-  deleteSession: (id: string) => Promise<void>;
+  archiveSession: (id: string, maxArchivedSessions?: number) => Promise<void>;
+  removeSession: (id: string) => Promise<void>;
   renameSession: (id: string, newName: string) => Promise<void>;
   refreshSessions: () => Promise<void>;
 }

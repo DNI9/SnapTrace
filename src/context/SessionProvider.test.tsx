@@ -40,7 +40,8 @@ describe('SessionProvider', () => {
       expect(contextValue).not.toBeNull();
       expect(contextValue!.createSession).toBeDefined();
       expect(contextValue!.activateSession).toBeDefined();
-      expect(contextValue!.deleteSession).toBeDefined();
+      expect(contextValue!.archiveSession).toBeDefined();
+      expect(contextValue!.removeSession).toBeDefined();
       expect(contextValue!.renameSession).toBeDefined();
       expect(contextValue!.refreshSessions).toBeDefined();
     });

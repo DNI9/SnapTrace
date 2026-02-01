@@ -14,6 +14,8 @@ export interface Session {
   name: string;
   createdAt: number;
   items: EvidenceItem[];
+  archived?: boolean;
+  archivedAt?: number;
 }
 
 export interface SessionSummary {
@@ -21,6 +23,7 @@ export interface SessionSummary {
   name: string;
   createdAt: number;
   itemCount: number;
+  archived?: boolean;
 }
 
 interface SnapTraceDB extends DBSchema {
@@ -88,6 +91,7 @@ export async function getSessionSummaries(): Promise<SessionSummary[]> {
       name: session.name,
       createdAt: session.createdAt,
       itemCount: session.items.length,
+      archived: session.archived,
     });
     cursor = await cursor.continue();
   }
@@ -100,7 +104,7 @@ export async function setActiveSession(id: string): Promise<void> {
   await chrome.storage.local.set({ activeSessionId: id });
 }
 
-export async function deleteSession(id: string): Promise<void> {
+export async function permanentlyDeleteSession(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('sessions', id);
   const activeId = await getActiveSessionId();
@@ -109,6 +113,50 @@ export async function deleteSession(id: string): Promise<void> {
     await chrome.storage.local.remove('activeSessionId');
   }
 }
+
+export async function archiveSession(id: string, maxArchivedSessions: number = 10): Promise<void> {
+  const db = await getDB();
+  const session = await db.get('sessions', id);
+  if (!session) return; // Already deleted or doesn't exist
+
+  // Check if it's the active session and deactivate it if so
+  const activeId = await getActiveSessionId();
+  if (activeId === id) {
+    await db.delete('appState', 'activeSessionId');
+    await chrome.storage.local.remove('activeSessionId');
+  }
+
+  // Mark as archived
+  session.archived = true;
+  session.archivedAt = Date.now();
+  await db.put('sessions', session);
+
+  // Enforce limit
+  const tx = db.transaction('sessions', 'readonly');
+  const store = tx.objectStore('sessions');
+  const allSessions: Session[] = [];
+  let cursor = await store.openCursor();
+  while (cursor) {
+    allSessions.push(cursor.value);
+    cursor = await cursor.continue();
+  }
+
+  const archivedSessions = allSessions
+    .filter(s => s.archived)
+    .sort((a, b) => (a.archivedAt || 0) - (b.archivedAt || 0));
+
+  if (archivedSessions.length > maxArchivedSessions) {
+    const toDeleteCount = archivedSessions.length - maxArchivedSessions;
+    const toDelete = archivedSessions.slice(0, toDeleteCount);
+    for (const s of toDelete) {
+      await permanentlyDeleteSession(s.id);
+    }
+  }
+}
+
+// Kept for backward compatibility but mapped to permanentlyDeleteSession if used directly,
+// though consumers should prefer archiveSession for user actions.
+export const deleteSession = permanentlyDeleteSession;
 
 export async function addEvidenceToSession(
   sessionId: string,

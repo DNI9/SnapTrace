@@ -8,7 +8,8 @@ function App() {
     activeSessionId,
     createSession,
     activateSession,
-    deleteSession,
+    archiveSession,
+    removeSession,
     renameSession,
   } = useSession();
   const [isCreating, setIsCreating] = useState(false);
@@ -22,6 +23,11 @@ function App() {
     const saved = localStorage.getItem('snaptrace-scale-down-images');
     return saved === 'true'; // Default to false
   });
+  const [maxArchivedSessions, setMaxArchivedSessions] = useState(() => {
+    const saved = localStorage.getItem('snaptrace-max-archived');
+    return saved ? parseInt(saved, 10) : 10;
+  });
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
 
   const toggleIncludeUrl = () => {
     const newValue = !includeUrl;
@@ -33,6 +39,14 @@ function App() {
     const newValue = !scaleDownImages;
     setScaleDownImages(newValue);
     localStorage.setItem('snaptrace-scale-down-images', String(newValue));
+  };
+
+  const handleMaxArchivedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value, 10);
+    if (!isNaN(val) && val >= 0) {
+      setMaxArchivedSessions(val);
+      localStorage.setItem('snaptrace-max-archived', String(val));
+    }
   };
 
   const [newSessionName, setNewSessionName] = useState('');
@@ -102,8 +116,17 @@ function App() {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this session?')) {
-      await deleteSession(id);
+    const isArchived = activeTab === 'archived';
+    const msg = isArchived
+      ? 'Are you sure you want to PERMANENTLY delete this session?'
+      : 'Are you sure you want to archive this session?';
+
+    if (confirm(msg)) {
+      if (isArchived) {
+        await removeSession(id);
+      } else {
+        await archiveSession(id, maxArchivedSessions);
+      }
     }
   };
 
@@ -205,6 +228,22 @@ function App() {
               Scale Down Images for Smaller File Size
             </span>
           </label>
+          <div className="pt-2 border-t border-slate-100">
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+              Max Archived Sessions
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={maxArchivedSessions}
+              onChange={handleMaxArchivedChange}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-slate-700 focus:bg-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Oldest archived sessions will be permanently deleted when limit is reached.
+            </p>
+          </div>
         </div>
       )}
 
@@ -238,8 +277,34 @@ function App() {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="px-4 pt-2 flex space-x-4 border-b border-slate-100">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`pb-2 text-sm font-medium transition-colors relative ${
+            activeTab === 'active' ? 'text-violet-600' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Active Sessions
+          {activeTab === 'active' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600 rounded-t-full" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('archived')}
+          className={`pb-2 text-sm font-medium transition-colors relative ${
+            activeTab === 'archived' ? 'text-violet-600' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Archived
+          {activeTab === 'archived' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600 rounded-t-full" />
+          )}
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        {sessions.length === 0 ? (
+        {sessions.filter(s => (activeTab === 'active' ? !s.archived : s.archived)).length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center h-64 text-slate-400">
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,7 +316,9 @@ function App() {
                 />
               </svg>
             </div>
-            <p className="font-medium text-slate-600">No sessions yet</p>
+            <p className="font-medium text-slate-600">
+              {activeTab === 'active' ? 'No active sessions' : 'No archived sessions'}
+            </p>
             <p className="text-sm mt-1">
               Press{' '}
               <kbd className="font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 text-xs shadow-sm">
@@ -261,164 +328,166 @@ function App() {
             </p>
           </div>
         ) : (
-          sessions.map(session => (
-            <div
-              key={session.id}
-              onClick={() => activateSession(session.id)}
-              className={`group relative p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                session.id === activeSessionId
-                  ? 'bg-white border-violet-500 ring-2 ring-violet-500/10 shadow-md shadow-violet-100'
-                  : 'bg-white border-slate-100 hover:border-violet-200 hover:shadow-md hover:-translate-y-0.5'
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0 pr-6">
-                  {editingId === session.id ? (
-                    <form
-                      onSubmit={e => handleRename(e, session.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <input
-                        autoFocus
-                        type="text"
-                        className="flex-1 px-2 py-1 text-sm bg-slate-50 border border-violet-300 rounded focus:outline-none focus:ring-2 focus:ring-violet-200"
-                        value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                      />
-                      <button
-                        type="submit"
-                        className="text-xs bg-violet-600 text-white px-2 py-1 rounded hover:bg-violet-700"
+          sessions
+            .filter(s => (activeTab === 'active' ? !s.archived : s.archived))
+            .map(session => (
+              <div
+                key={session.id}
+                onClick={() => activateSession(session.id)}
+                className={`group relative p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+                  session.id === activeSessionId
+                    ? 'bg-white border-violet-500 ring-2 ring-violet-500/10 shadow-md shadow-violet-100'
+                    : 'bg-white border-slate-100 hover:border-violet-200 hover:shadow-md hover:-translate-y-0.5'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 pr-6">
+                    {editingId === session.id ? (
+                      <form
+                        onSubmit={e => handleRename(e, session.id)}
+                        className="flex items-center gap-2"
                       >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        className="text-xs text-slate-400 hover:text-slate-600 p-1"
-                      >
-                        ✕
-                      </button>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3
-                          className={`font-semibold text-sm truncate ${session.id === activeSessionId ? 'text-violet-900' : 'text-slate-700 group-hover:text-violet-700'}`}
+                        <input
+                          autoFocus
+                          type="text"
+                          className="flex-1 px-2 py-1 text-sm bg-slate-50 border border-violet-300 rounded focus:outline-none focus:ring-2 focus:ring-violet-200"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs bg-violet-600 text-white px-2 py-1 rounded hover:bg-violet-700"
                         >
-                          {session.name}
-                        </h3>
-                        {session.id === activeSessionId && (
-                          <span className="flex h-2 w-2 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="text-xs text-slate-400 hover:text-slate-600 p-1"
+                        >
+                          ✕
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3
+                            className={`font-semibold text-sm truncate ${session.id === activeSessionId ? 'text-violet-900' : 'text-slate-700 group-hover:text-violet-700'}`}
+                          >
+                            {session.name}
+                          </h3>
+                          {session.id === activeSessionId && (
+                            <span className="flex h-2 w-2 relative">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {session.itemCount} items
+                          <span className="mx-1.5 opacity-50">|</span>
+                          <span className="font-normal opacity-75">
+                            {new Date(session.createdAt).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
                           </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 font-medium">
-                        {session.itemCount} items
-                        <span className="mx-1.5 opacity-50">|</span>
-                        <span className="font-normal opacity-75">
-                          {new Date(session.createdAt).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      </p>
-                    </>
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Actions (Floating on hover) */}
+                  {editingId !== session.id && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur pl-2 rounded-l-lg shadow-sm border border-slate-100 py-1">
+                      <button
+                        onClick={e => startEditing(e, session)}
+                        title="Rename"
+                        className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors"
+                        disabled={!!isExporting}
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          ></path>
+                        </svg>
+                      </button>
+                      <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
+                      <button
+                        onClick={e => handleExportDocx(e, session)}
+                        title={isExporting === 'docx' ? 'Exporting...' : 'Export DOCX'}
+                        disabled={!!isExporting}
+                        className={`p-1.5 rounded-md transition-colors ${isExporting === 'docx' ? 'text-blue-600 animate-pulse bg-blue-50' : 'text-blue-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          ></path>
+                        </svg>
+                      </button>
+                      <button
+                        onClick={e => handleExportPdf(e, session)}
+                        title={isExporting === 'pdf' ? 'Exporting...' : 'Export PDF'}
+                        disabled={!!isExporting}
+                        className={`p-1.5 rounded-md transition-colors ${isExporting === 'pdf' ? 'text-rose-600 animate-pulse bg-rose-50' : 'text-rose-400 hover:text-rose-600 hover:bg-rose-50'}`}
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                          ></path>
+                        </svg>
+                      </button>
+                      <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
+                      <button
+                        onClick={e => handleDelete(e, session.id)}
+                        title={activeTab === 'active' ? 'Archive' : 'Delete Permanently'}
+                        disabled={!!isExporting}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
                   )}
                 </div>
-
-                {/* Actions (Floating on hover) */}
-                {editingId !== session.id && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur pl-2 rounded-l-lg shadow-sm border border-slate-100 py-1">
-                    <button
-                      onClick={e => startEditing(e, session)}
-                      title="Rename"
-                      className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors"
-                      disabled={!!isExporting}
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        ></path>
-                      </svg>
-                    </button>
-                    <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
-                    <button
-                      onClick={e => handleExportDocx(e, session)}
-                      title={isExporting === 'docx' ? 'Exporting...' : 'Export DOCX'}
-                      disabled={!!isExporting}
-                      className={`p-1.5 rounded-md transition-colors ${isExporting === 'docx' ? 'text-blue-600 animate-pulse bg-blue-50' : 'text-blue-400 hover:text-blue-600 hover:bg-blue-50'}`}
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        ></path>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={e => handleExportPdf(e, session)}
-                      title={isExporting === 'pdf' ? 'Exporting...' : 'Export PDF'}
-                      disabled={!!isExporting}
-                      className={`p-1.5 rounded-md transition-colors ${isExporting === 'pdf' ? 'text-rose-600 animate-pulse bg-rose-50' : 'text-rose-400 hover:text-rose-600 hover:bg-rose-50'}`}
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                        ></path>
-                      </svg>
-                    </button>
-                    <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
-                    <button
-                      onClick={e => handleDelete(e, session.id)}
-                      title="Delete"
-                      disabled={!!isExporting}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        ></path>
-                      </svg>
-                    </button>
-                  </div>
-                )}
               </div>
-            </div>
-          ))
+            ))
         )}
       </div>
     </div>
