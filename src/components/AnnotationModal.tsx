@@ -328,7 +328,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     };
   }, [currentTool, saveState]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!fabricCanvasRef.current || !imgElement || isSaving) return;
 
     try {
@@ -353,11 +353,18 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       console.error('Error saving/compressing', e);
       setIsSaving(false);
     }
-  };
+  }, [imgElement, isSaving, onSave, description]);
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Global Save Shortcut (Ctrl+Enter or Cmd+Enter)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+
       // Ignore shortcuts if an input is focused (except Tab/Escape which are global nav)
       // Since we are in a shadow DOM, we need to check composed path or shadow root active element.
       // e.composedPath()[0] gives the actual target even across shadow boundaries for most events.
@@ -372,8 +379,6 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
           setToolbarVisible(prev => !prev);
         } else if (e.key === 'Escape') {
           onCancel();
-        } else if (e.key === 'Enter') {
-          // handled by onKeyDown prop on Input
         }
         return;
       }
@@ -426,7 +431,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [onCancel, historyLength, redoLength, handleUndo, handleRedo, saveState]); // Re-bind for closures or use Refs
+  }, [onCancel, historyLength, redoLength, handleUndo, handleRedo, saveState, handleSave]); // Re-bind for closures or use Refs
 
   const inputRef = useRef<HTMLInputElement>(null);
 

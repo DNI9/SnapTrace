@@ -38,6 +38,13 @@ async function compressImage(
 
         ctx.drawImage(img, 0, 0, width, height);
 
+        // Draw simple border (1px solid black)
+        // Using lineWidth = 2 with strokeRect(0,0,w,h) means 1px is inside and 1px is outside (clipped)
+        // This results in a sharp 1px border around the edge
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, width, height);
+
         // Convert to compressed JPEG
         const compressedData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
 
