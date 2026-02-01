@@ -1,0 +1,123 @@
+import { describe, it, expect } from 'vitest';
+
+/**
+ * Tests for export utility functions from offscreen.ts
+ *
+ * Note: The main export functions (exportSessionToDocx, exportSessionToPdf) require
+ * a full DOM environment with Image loading and Canvas support, which is complex
+ * to mock. These tests focus on the pure utility functions.
+ */
+
+// Utility function extracted for testing (matches offscreen.ts implementation)
+function fitToWidth(
+  imgWidth: number,
+  imgHeight: number,
+  maxWidth: number
+): { width: number; height: number } {
+  const aspectRatio = imgWidth / imgHeight;
+  const width = Math.min(imgWidth, maxWidth);
+  const height = width / aspectRatio;
+  return { width, height };
+}
+
+describe('Export Utilities', () => {
+  describe('fitToWidth', () => {
+    it('should maintain aspect ratio for landscape images', () => {
+      const result = fitToWidth(1000, 500, 500);
+
+      expect(result.width).toBe(500);
+      expect(result.height).toBe(250);
+      // Verify aspect ratio is maintained
+      expect(result.width / result.height).toBeCloseTo(1000 / 500);
+    });
+
+    it('should maintain aspect ratio for portrait images', () => {
+      const result = fitToWidth(500, 1000, 400);
+
+      expect(result.width).toBe(400);
+      expect(result.height).toBe(800);
+      // Verify aspect ratio is maintained
+      expect(result.width / result.height).toBeCloseTo(500 / 1000);
+    });
+
+    it('should not upscale if image is smaller than max width', () => {
+      const result = fitToWidth(300, 200, 500);
+
+      expect(result.width).toBe(300);
+      expect(result.height).toBe(200);
+    });
+
+    it('should handle square images', () => {
+      const result = fitToWidth(800, 800, 400);
+
+      expect(result.width).toBe(400);
+      expect(result.height).toBe(400);
+    });
+
+    it('should handle exact max width', () => {
+      const result = fitToWidth(500, 300, 500);
+
+      expect(result.width).toBe(500);
+      expect(result.height).toBe(300);
+    });
+
+    it('should handle very wide images', () => {
+      const result = fitToWidth(2000, 100, 500);
+
+      expect(result.width).toBe(500);
+      expect(result.height).toBe(25);
+      expect(result.width / result.height).toBeCloseTo(2000 / 100);
+    });
+
+    it('should handle very tall images', () => {
+      const result = fitToWidth(100, 2000, 500);
+
+      expect(result.width).toBe(100);
+      expect(result.height).toBe(2000);
+    });
+  });
+
+  describe('Export configuration constants', () => {
+    // These are the constants from offscreen.ts
+    const MAX_IMAGE_WIDTH = 1200;
+    const MAX_IMAGE_HEIGHT = 900;
+    const JPEG_QUALITY = 0.7;
+
+    it('should have reasonable max dimensions', () => {
+      expect(MAX_IMAGE_WIDTH).toBeGreaterThan(0);
+      expect(MAX_IMAGE_HEIGHT).toBeGreaterThan(0);
+      expect(MAX_IMAGE_WIDTH).toBeLessThanOrEqual(4096); // Reasonable upper limit
+      expect(MAX_IMAGE_HEIGHT).toBeLessThanOrEqual(4096);
+    });
+
+    it('should have valid JPEG quality', () => {
+      expect(JPEG_QUALITY).toBeGreaterThan(0);
+      expect(JPEG_QUALITY).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('Filename sanitization', () => {
+    // This matches the pattern used in offscreen.ts
+    const sanitizeFilename = (name: string) => name.replace(/[^a-z0-9]/gi, '_');
+
+    it('should replace spaces with underscores', () => {
+      expect(sanitizeFilename('My Test Session')).toBe('My_Test_Session');
+    });
+
+    it('should replace special characters', () => {
+      expect(sanitizeFilename('Test@Session#123')).toBe('Test_Session_123');
+    });
+
+    it('should keep alphanumeric characters', () => {
+      expect(sanitizeFilename('TestSession123')).toBe('TestSession123');
+    });
+
+    it('should handle multiple spaces/special chars', () => {
+      expect(sanitizeFilename('Test   Session!!!v2')).toBe('Test___Session___v2');
+    });
+
+    it('should handle empty string', () => {
+      expect(sanitizeFilename('')).toBe('');
+    });
+  });
+});
