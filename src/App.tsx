@@ -18,11 +18,21 @@ function App() {
     const saved = localStorage.getItem('snaptrace-include-url');
     return saved !== 'false'; // Default to true
   });
+  const [scaleDownImages, setScaleDownImages] = useState(() => {
+    const saved = localStorage.getItem('snaptrace-scale-down-images');
+    return saved === 'true'; // Default to false
+  });
 
   const toggleIncludeUrl = () => {
     const newValue = !includeUrl;
     setIncludeUrl(newValue);
     localStorage.setItem('snaptrace-include-url', String(newValue));
+  };
+
+  const toggleScaleDownImages = () => {
+    const newValue = !scaleDownImages;
+    setScaleDownImages(newValue);
+    localStorage.setItem('snaptrace-scale-down-images', String(newValue));
   };
 
   const [newSessionName, setNewSessionName] = useState('');
@@ -53,7 +63,7 @@ function App() {
       // Delegate to background worker to prevent browser crash
       const response = await chrome.runtime.sendMessage({
         type: 'EXPORT_DOCX',
-        payload: { session, options: { includeUrl } },
+        payload: { session, options: { includeUrl, scaleDownImages } },
       });
       if (!response?.success) {
         throw new Error(response?.error || 'Export failed');
@@ -77,7 +87,7 @@ function App() {
       // Delegate to background worker to prevent browser crash
       const response = await chrome.runtime.sendMessage({
         type: 'EXPORT_PDF',
-        payload: { session, options: { includeUrl } },
+        payload: { session, options: { includeUrl, scaleDownImages } },
       });
       if (!response?.success) {
         throw new Error(response?.error || 'Export failed');
@@ -171,7 +181,7 @@ function App() {
       </header>
 
       {showSettings && (
-        <div className="px-4 py-3 bg-white border-b border-slate-100 shadow-inner animate-in slide-in-from-top-2 duration-200">
+        <div className="px-4 py-3 bg-white border-b border-slate-100 shadow-inner animate-in slide-in-from-top-2 duration-200 space-y-3">
           <label className="flex items-center space-x-3 text-sm text-slate-600 cursor-pointer select-none group">
             <div className="relative flex items-center">
               <input
@@ -183,6 +193,19 @@ function App() {
             </div>
             <span className="group-hover:text-slate-900 transition-colors">
               Include Source URL in Exports
+            </span>
+          </label>
+          <label className="flex items-center space-x-3 text-sm text-slate-600 cursor-pointer select-none group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                checked={scaleDownImages}
+                onChange={toggleScaleDownImages}
+                className="peer h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500/30 transition-all cursor-pointer"
+              />
+            </div>
+            <span className="group-hover:text-slate-900 transition-colors">
+              Scale Down Images for Smaller File Size
             </span>
           </label>
         </div>

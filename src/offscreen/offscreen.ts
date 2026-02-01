@@ -9,7 +9,8 @@ const JPEG_QUALITY = 0.7;
 
 // Helper to resize and compress image to prevent memory issues
 async function compressImage(
-  base64: string
+  base64: string,
+  scaleDown: boolean = false
 ): Promise<{ data: string; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -17,12 +18,14 @@ async function compressImage(
       try {
         let { naturalWidth: width, naturalHeight: height } = img;
 
-        // Calculate scale to fit within max dimensions
-        const scale = Math.min(1, MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height);
+        // Calculate scale to fit within max dimensions (only if scaleDown is enabled)
+        if (scaleDown) {
+          const scale = Math.min(1, MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height);
 
-        if (scale < 1) {
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
+          if (scale < 1) {
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
         }
 
         // Create canvas and draw resized image
@@ -94,7 +97,7 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 
 async function exportSessionToDocx(
   session: Session,
-  options?: { includeUrl?: boolean }
+  options?: { includeUrl?: boolean; scaleDownImages?: boolean }
 ): Promise<{ dataUrl: string; filename: string }> {
   const children = [];
   const MAX_WIDTH = 500;
@@ -142,7 +145,7 @@ async function exportSessionToDocx(
     }
 
     try {
-      const compressed = await compressImage(item.imageUrl);
+      const compressed = await compressImage(item.imageUrl, options?.scaleDownImages ?? false);
       const imageBuffer = await base64ToUint8Array(compressed.data);
       const { width, height } = fitToWidth(compressed.width, compressed.height, MAX_WIDTH);
 
@@ -179,7 +182,7 @@ async function exportSessionToDocx(
 
 async function exportSessionToPdf(
   session: Session,
-  options?: { includeUrl?: boolean }
+  options?: { includeUrl?: boolean; scaleDownImages?: boolean }
 ): Promise<{ dataUrl: string; filename: string }> {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -224,7 +227,7 @@ async function exportSessionToPdf(
     }
 
     try {
-      const compressed = await compressImage(item.imageUrl);
+      const compressed = await compressImage(item.imageUrl, options?.scaleDownImages ?? false);
       const aspectRatio = compressed.width / compressed.height;
       const imgWidth = Math.min(maxImgWidth, compressed.width * 0.264583);
       const imgHeight = imgWidth / aspectRatio;
