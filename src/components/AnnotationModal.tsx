@@ -411,11 +411,14 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
           e.preventDefault();
           setToolbarVisible(prev => !prev);
         } else if (e.key === 'Escape') {
+          e.preventDefault();
           onCancel();
         }
+        // Allow all other keys (including Backspace) to work normally in input fields
         return;
       }
 
+      // For all non-input key handling, prevent default to stop page from receiving events
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') {
           e.preventDefault();
@@ -436,35 +439,39 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         e.preventDefault();
         setToolbarVisible(prev => !prev);
       } else if (e.key === 'Escape') {
+        e.preventDefault();
         onCancel();
       } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
         setCurrentTool('rectangle');
       } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
         setCurrentTool('text');
       } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
         setCurrentTool('none');
       } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
         setCurrentTool('step');
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Only handle delete if input is not focused
-        if (document.activeElement !== inputRef.current) {
-          const canvas = fabricCanvasRef.current;
-          if (canvas) {
-            const active = canvas.getActiveObjects();
-            if (active.length) {
-              canvas.remove(...active);
-              canvas.discardActiveObject();
-              canvas.requestRenderAll();
-              saveState();
-            }
+        e.preventDefault();
+        const canvas = fabricCanvasRef.current;
+        if (canvas) {
+          const active = canvas.getActiveObjects();
+          if (active.length) {
+            canvas.remove(...active);
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            saveState();
           }
         }
       }
     };
 
-    window.addEventListener('keydown', handleGlobalKeyDown);
+    // Use capture phase (true) to intercept events before they reach the page
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
     return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
     };
   }, [onCancel, historyLength, redoLength, handleUndo, handleRedo, saveState, handleSave]); // Re-bind for closures or use Refs
 
