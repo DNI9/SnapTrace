@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const readline = require('readline');
 
 const args = process.argv.slice(2);
 const releaseType = args[0];
@@ -57,7 +58,30 @@ fs.writeFileSync(manifestJsonPath, JSON.stringify(manifestJson, null, 2) + '\n')
 console.log('Updated manifest.json');
 
 console.log(`\nVersion updated to ${newVersion}.`);
-console.log(`To complete the release, you might want to run:`);
-console.log(`  git add package.json manifest.json`);
-console.log(`  git commit -m "chore(release): v${newVersion}"`);
-console.log(`  git tag v${newVersion}`);
+try {
+  console.log('\nCommitting and tagging...');
+  execSync('git add package.json manifest.json', { stdio: 'inherit' });
+  execSync(`git commit -m "chore(release): v${newVersion}"`, { stdio: 'inherit' });
+  execSync(`git tag v${newVersion}`, { stdio: 'inherit' });
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  rl.question('\nDo you want to push the tag? (y/N) ', (answer) => {
+    if (answer.trim().toLowerCase() === 'y') {
+      try {
+        execSync('git push --follow-tags', { stdio: 'inherit' });
+      } catch (pushError) {
+        console.error('Failed to push:', pushError.message);
+      }
+    } else {
+      console.log('Push skipped.');
+    }
+    rl.close();
+  });
+} catch (error) {
+  console.error('Git operations failed:', error.message);
+  process.exit(1);
+}
