@@ -152,19 +152,17 @@ function App() {
 
   return (
     <div className="w-96 h-[500px] flex flex-col bg-slate-50 font-sans text-slate-800">
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 p-4 flex justify-between items-center border-b border-slate-100 shadow-sm">
+      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 p-4 flex justify-between items-center bg-white">
         <div className="flex items-center gap-2">
-          <h1 className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-violet-700 to-fuchsia-600">
-            SnapTrace
-          </h1>
+          <h1 className="font-bold text-xl text-fuchsia-700">SnapTrace</h1>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-lg transition-all duration-200 ${
+            className={`p-2 rounded-full transition-all duration-200 ${
               showSettings
                 ? 'bg-violet-100 text-violet-700'
-                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
             }`}
             title="Settings"
           >
@@ -185,7 +183,7 @@ function App() {
           </button>
           <button
             onClick={() => setIsCreating(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm hover:shadow active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-sm font-medium rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -195,7 +193,7 @@ function App() {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            <span>New</span>
+            <span>New Session</span>
           </button>
         </div>
       </header>
@@ -278,27 +276,28 @@ function App() {
       )}
 
       {/* Tabs */}
-      <div className="px-4 pt-2 flex space-x-4 border-b border-slate-100">
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 bg-white">
         <button
           onClick={() => setActiveTab('active')}
-          className={`pb-2 text-sm font-medium transition-colors relative ${
-            activeTab === 'active' ? 'text-violet-600' : 'text-slate-500 hover:text-slate-700'
+          className={`flex-1 py-3 text-sm font-semibold transition-colors relative ${
+            activeTab === 'active' ? 'text-black' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
-          Active Sessions
+          Active
           {activeTab === 'active' && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600 rounded-t-full" />
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600" />
           )}
         </button>
         <button
           onClick={() => setActiveTab('archived')}
-          className={`pb-2 text-sm font-medium transition-colors relative ${
-            activeTab === 'archived' ? 'text-violet-600' : 'text-slate-500 hover:text-slate-700'
+          className={`flex-1 py-3 text-sm font-semibold transition-colors relative ${
+            activeTab === 'archived' ? 'text-black' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Archived
           {activeTab === 'archived' && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600 rounded-t-full" />
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600" />
           )}
         </button>
       </div>
@@ -334,10 +333,10 @@ function App() {
               <div
                 key={session.id}
                 onClick={() => activateSession(session.id)}
-                className={`group relative p-3.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+                className={`group relative p-4 rounded-xl border transition-all duration-200 cursor-pointer mb-3 ${
                   session.id === activeSessionId
-                    ? 'bg-white border-violet-500 ring-2 ring-violet-500/10 shadow-md shadow-violet-100'
-                    : 'bg-white border-slate-100 hover:border-violet-200 hover:shadow-md hover:-translate-y-0.5'
+                    ? 'bg-white border-violet-400 shadow-md shadow-violet-100 ring-1 ring-violet-400'
+                    : 'bg-white border-violet-200 hover:border-violet-300 hover:shadow-md'
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -373,21 +372,18 @@ function App() {
                       <>
                         <div className="flex items-center gap-2 mb-1">
                           <h3
-                            className={`font-semibold text-sm truncate ${session.id === activeSessionId ? 'text-violet-900' : 'text-slate-700 group-hover:text-violet-700'}`}
+                            className={`font-bold text-base truncate ${session.id === activeSessionId ? 'text-indigo-900' : 'text-indigo-900'}`}
                           >
                             {session.name}
                           </h3>
-                          {session.id === activeSessionId && (
-                            <span className="flex h-2 w-2 relative">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                            </span>
-                          )}
+                          <span
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${session.id === activeSessionId ? 'bg-green-500' : 'bg-slate-300'}`}
+                          ></span>
                         </div>
-                        <p className="text-xs text-slate-500 font-medium">
+                        <p className="text-xs text-slate-500">
                           {session.itemCount} items
                           <span className="mx-1.5 opacity-50">|</span>
-                          <span className="font-normal opacity-75">
+                          <span className="">
                             {new Date(session.createdAt).toLocaleDateString(undefined, {
                               month: 'short',
                               day: 'numeric',
