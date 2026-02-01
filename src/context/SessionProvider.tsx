@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  type Session,
-  getAllSessions,
+  type SessionSummary,
+  getSessionSummaries,
   getActiveSessionId,
   createNewSession,
   setActiveSession,
@@ -11,11 +11,11 @@ import {
 import { SessionContext } from './SessionContext';
 
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   const refreshSessions = async () => {
-    const all = await getAllSessions();
+    const all = await getSessionSummaries();
     setSessions(all.sort((a, b) => b.createdAt - a.createdAt));
     const active = await getActiveSessionId();
     setActiveSessionId(active);
@@ -26,7 +26,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     let isMounted = true;
 
     const loadInitialData = async () => {
-      const all = await getAllSessions();
+      const all = await getSessionSummaries();
       const active = await getActiveSessionId();
       if (isMounted) {
         setSessions(all.sort((a, b) => b.createdAt - a.createdAt));

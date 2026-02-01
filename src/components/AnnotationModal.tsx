@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as fabric from 'fabric';
+import { compressImage } from '../utils/storage';
 
 interface AnnotationModalProps {
   image: string;
@@ -26,6 +27,16 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     return (saved as Tool) || 'none';
   });
 
+  // Undo/Redo Stacks
+  // We store JSON strings of the canvas state
+  const historyRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  // We need state to trigger re-renders for button disabled states if we want,
+  // but for now let's just keep it simple or use forceUpdate if needed.
+  // Actually, let's track length in state to update UI.
+  const [historyLength, setHistoryLength] = useState(0);
+  const [redoLength, setRedoLength] = useState(0);
+
   // State for rectangle drawing
   const isDrawingRef = useRef(false);
   const activeObjRef = useRef<fabric.Rect | null>(null);
@@ -33,6 +44,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
 
   const [imgElement, setImgElement] = useState<HTMLImageElement | null>(null); // Keep track for dimensions
   const [toolbarVisible, setToolbarVisible] = useState(true); // Default to visible for better UX
+  const [isSaving, setIsSaving] = useState(false);
 
   // Persist tool selection
   useEffect(() => {
@@ -59,6 +71,53 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       document.body.style.overflow = originalStyle;
     };
   }, []);
+
+  // Helper to save state
+  const saveState = () => {
+    if (!fabricCanvasRef.current) return;
+    const json = JSON.stringify(fabricCanvasRef.current.toJSON());
+    historyRef.current.push(json);
+    redoStackRef.current = []; // Clear redo on new action
+    setHistoryLength(historyRef.current.length);
+    setRedoLength(0);
+  };
+
+  const handleUndo = async () => {
+    // Keep at least one state (the initial base state)
+    if (historyRef.current.length <= 1 || !fabricCanvasRef.current) return;
+
+    // Pop the current state (e.g. State N)
+    const currentState = historyRef.current.pop();
+    if (currentState) {
+      redoStackRef.current.push(currentState);
+    }
+
+    // Peek at the previous state (State N-1)
+    const previousState = historyRef.current[historyRef.current.length - 1];
+
+    if (previousState) {
+      await fabricCanvasRef.current.loadFromJSON(JSON.parse(previousState));
+      fabricCanvasRef.current.requestRenderAll();
+    }
+
+    setHistoryLength(historyRef.current.length);
+    setRedoLength(redoStackRef.current.length);
+  };
+
+  const handleRedo = async () => {
+    if (redoStackRef.current.length === 0 || !fabricCanvasRef.current) return;
+
+    const nextState = redoStackRef.current.pop();
+
+    if (nextState) {
+      historyRef.current.push(nextState);
+      await fabricCanvasRef.current.loadFromJSON(JSON.parse(nextState));
+      fabricCanvasRef.current.requestRenderAll();
+    }
+
+    setHistoryLength(historyRef.current.length);
+    setRedoLength(redoStackRef.current.length);
+  };
 
   // Initialize Fabric Canvas and Image
   useEffect(() => {
@@ -102,13 +161,32 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
 
       canvas.backgroundImage = fImg;
       canvas.requestRenderAll();
+
+      // Save initial state (Undo base)
+      saveState();
     };
+
+    // Modification listener for Undo/Redo
+    const onObjectModified = () => {
+      saveState();
+    };
+
+    canvas.on('object:modified', onObjectModified);
+    canvas.on('object:added', e => {
+      // We only want to save state on user addition, not initial load.
+      // But initial load is async.
+      // A simple workaround is checking if we are drawing or if interaction happens.
+      // For now, let's assume valid user additions.
+      if (e.target !== canvas.backgroundImage) {
+        saveState();
+      }
+    });
 
     return () => {
       canvas.dispose();
       fabricCanvasRef.current = null;
     };
-  }, [image]); // Re-init if image changes (unlikely in modal lifespan but correct)
+  }, [image]);
 
   // Event Listeners for Drawing
   useEffect(() => {
@@ -118,7 +196,6 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     const handleMouseDown = (opt: FabricEvent) => {
       if (currentTool === 'none') return;
 
-      // Fabric 6+ passes pointer/scenePoint in the options
       const pointer = opt.scenePoint;
       if (!pointer) return;
 
@@ -136,14 +213,13 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
           fill: 'transparent',
           stroke: '#ef4444', // Red-500
           strokeWidth: 3,
-          selectable: false, // Initially false while drawing
+          selectable: false,
           evented: false,
         });
 
         activeObjRef.current = rect;
         canvas.add(rect);
       } else if (currentTool === 'text') {
-        // For text, we just click and add
         const text = new fabric.IText('Text', {
           left: pointer.x,
           top: pointer.y,
@@ -157,7 +233,8 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         canvas.setActiveObject(text);
         text.enterEditing();
         text.selectAll();
-        setCurrentTool('none'); // Switch back to select after adding text
+        setCurrentTool('none');
+        // Object added event triggers saveState
       }
     };
 
@@ -190,20 +267,21 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       if (isDrawingRef.current && currentTool === 'rectangle') {
         isDrawingRef.current = false;
         if (activeObjRef.current) {
-          // Determine if it was just a click (too small)
           if (activeObjRef.current.width! < 5 || activeObjRef.current.height! < 5) {
             canvas.remove(activeObjRef.current);
           } else {
             activeObjRef.current.setCoords();
-            // Make it selectable now that drawing is done, IF we want to auto-switch or keep drawing?
-            // Let's keep drawing mode active for multiple rects, but they become selectable only when tool changes to 'none'.
+            // Trigger save state explicitly if needed, but 'object:added' covers 'add'.
+            // However, dimensions changed during mouse move, so 'object:modified' might not trigger?
+            // object:added triggered on creation. Modified usually needs user action.
+            // Let's manually save state here to be safe for the resize.
+            saveState();
           }
           activeObjRef.current = null;
         }
       }
     };
 
-    // Remove existing listeners to avoid dupes if re-running effect
     canvas.off('mouse:down');
     canvas.off('mouse:move');
     canvas.off('mouse:up');
@@ -217,38 +295,72 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
     };
-  }, [currentTool]); // Re-bind when tool changes
+  }, [currentTool]);
 
-  const handleSave = () => {
-    if (!fabricCanvasRef.current || !imgElement) return;
+  const handleSave = async () => {
+    if (!fabricCanvasRef.current || !imgElement || isSaving) return;
 
-    const canvas = fabricCanvasRef.current;
-    const bgImg = canvas.backgroundImage as fabric.Image;
-    if (!bgImg) return;
+    try {
+      setIsSaving(true);
+      const canvas = fabricCanvasRef.current;
+      const bgImg = canvas.backgroundImage as fabric.Image;
+      if (!bgImg) return;
 
-    const currentScale = bgImg.scaleX || 1;
-    const multiplier = 1 / currentScale;
+      const currentScale = bgImg.scaleX || 1;
+      const multiplier = 1 / currentScale;
 
-    const dataUrl = canvas.toDataURL({
-      format: 'png',
-      multiplier: multiplier,
-    });
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        multiplier: multiplier,
+      });
 
-    onSave(description, dataUrl);
+      // Compress if needed
+      const compressedUrl = await compressImage(dataUrl);
+
+      onSave(description, compressedUrl);
+    } catch (e) {
+      console.error('Error saving/compressing', e);
+      setIsSaving(false);
+    }
   };
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Ignore shortcuts if an input is focused (except Tab/Escape which are global nav)
-      if (document.activeElement === inputRef.current) {
+      // Since we are in a shadow DOM, we need to check composed path or shadow root active element.
+      // e.composedPath()[0] gives the actual target even across shadow boundaries for most events.
+      const target = e.composedPath()[0] as HTMLElement;
+      const isInput =
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (isInput) {
         if (e.key === 'Tab') {
           e.preventDefault();
           setToolbarVisible(prev => !prev);
         } else if (e.key === 'Escape') {
           onCancel();
+        } else if (e.key === 'Enter') {
+          // handled by onKeyDown prop on Input
         }
         return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            handleRedo();
+          } else {
+            handleUndo();
+          }
+          return;
+        } else if (e.key === 'y') {
+          e.preventDefault();
+          handleRedo();
+          return;
+        }
       }
 
       if (e.key === 'Tab') {
@@ -272,6 +384,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
               canvas.remove(...active);
               canvas.discardActiveObject();
               canvas.requestRenderAll();
+              saveState();
             }
           }
         }
@@ -282,17 +395,10 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [onCancel]);
-
-  const handleInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    }
-  };
+  }, [onCancel, historyLength, redoLength]); // Re-bind for closures or use Refs
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -390,6 +496,60 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
             <div className="w-5 h-px bg-slate-200 my-1"></div>
 
             <button
+              className={`p-2 rounded-full transition-all duration-200 ${
+                historyLength === 0
+                  ? 'text-slate-300 cursor-not-allowed'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              }`}
+              onClick={handleUndo}
+              disabled={historyLength === 0}
+              title="Undo (Ctrl+Z)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 14L4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+              </svg>
+            </button>
+
+            <button
+              className={`p-2 rounded-full transition-all duration-200 ${
+                redoLength === 0
+                  ? 'text-slate-300 cursor-not-allowed'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              }`}
+              onClick={handleRedo}
+              disabled={redoLength === 0}
+              title="Redo (Ctrl+Y)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 14l5-5-5-5" />
+                <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13" />
+              </svg>
+            </button>
+
+            <div className="w-5 h-px bg-slate-200 my-1"></div>
+
+            <button
               className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
               onClick={() => {
                 fabricCanvasRef.current?.getObjects().forEach(o => {
@@ -398,6 +558,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                   }
                 });
                 fabricCanvasRef.current?.requestRenderAll();
+                saveState();
               }}
               title="Clear All"
             >
@@ -457,7 +618,10 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
               placeholder="Describe what you found... (Enter to save)"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              onKeyDown={handleInputKeyDown}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleSave();
+              }}
+              disabled={isSaving}
             />
           </div>
 
@@ -465,22 +629,26 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
             <button
               onClick={onCancel}
               className="flex-1 md:flex-none px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors text-sm"
+              disabled={isSaving}
             >
               Discard
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 shadow-md shadow-violet-200 active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
+              disabled={isSaving}
+              className={`flex-1 md:flex-none px-6 py-2.5 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 shadow-md shadow-violet-200 active:scale-95 transition-all text-sm flex items-center justify-center gap-2 ${isSaving ? 'opacity-70 cursor-wait' : ''}`}
             >
-              <span>Save Evidence</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                ></path>
-              </svg>
+              <span>{isSaving ? 'Saving...' : 'Save Evidence'}</span>
+              {!isSaving && (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+              )}
             </button>
           </div>
         </div>

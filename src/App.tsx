@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSession } from './context/useSession';
-import { type Session } from './utils/storage';
+import { type SessionSummary, getDB } from './utils/storage';
 
 function App() {
   const {
@@ -13,6 +13,7 @@ function App() {
   } = useSession();
   const [isCreating, setIsCreating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isExporting, setIsExporting] = useState<string | null>(null); // 'docx' | 'pdf' | null
   const [includeUrl, setIncludeUrl] = useState(() => {
     const saved = localStorage.getItem('snaptrace-include-url');
     return saved !== 'false'; // Default to true
@@ -36,9 +37,19 @@ function App() {
     setIsCreating(false);
   };
 
-  const handleExportDocx = async (e: React.MouseEvent, session: Session) => {
+  const getFullSession = async (id: string) => {
+    const db = await getDB();
+    return db.get('sessions', id);
+  };
+
+  const handleExportDocx = async (e: React.MouseEvent, summary: SessionSummary) => {
     e.stopPropagation();
+    if (isExporting) return;
+    setIsExporting('docx');
     try {
+      const session = await getFullSession(summary.id);
+      if (!session) throw new Error('Session data not found');
+
       // Delegate to background worker to prevent browser crash
       const response = await chrome.runtime.sendMessage({
         type: 'EXPORT_DOCX',
@@ -50,12 +61,19 @@ function App() {
     } catch (err) {
       console.error('Export failed', err);
       alert('Export failed');
+    } finally {
+      setIsExporting(null);
     }
   };
 
-  const handleExportPdf = async (e: React.MouseEvent, session: Session) => {
+  const handleExportPdf = async (e: React.MouseEvent, summary: SessionSummary) => {
     e.stopPropagation();
+    if (isExporting) return;
+    setIsExporting('pdf');
     try {
+      const session = await getFullSession(summary.id);
+      if (!session) throw new Error('Session data not found');
+
       // Delegate to background worker to prevent browser crash
       const response = await chrome.runtime.sendMessage({
         type: 'EXPORT_PDF',
@@ -67,6 +85,8 @@ function App() {
     } catch (err) {
       console.error('PDF Export failed', err);
       alert('PDF Export failed');
+    } finally {
+      setIsExporting(null);
     }
   };
 
@@ -77,7 +97,7 @@ function App() {
     }
   };
 
-  const startEditing = (e: React.MouseEvent, session: Session) => {
+  const startEditing = (e: React.MouseEvent, session: SessionSummary) => {
     e.stopPropagation();
     setEditingId(session.id);
     setEditName(session.name);
@@ -277,7 +297,7 @@ function App() {
                         )}
                       </div>
                       <p className="text-xs text-slate-500 font-medium">
-                        {session.items.length} items
+                        {session.itemCount} items
                         <span className="mx-1.5 opacity-50">|</span>
                         <span className="font-normal opacity-75">
                           {new Date(session.createdAt).toLocaleDateString(undefined, {
@@ -297,6 +317,7 @@ function App() {
                       onClick={e => startEditing(e, session)}
                       title="Rename"
                       className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-md transition-colors"
+                      disabled={!!isExporting}
                     >
                       <svg
                         className="w-3.5 h-3.5"
@@ -315,8 +336,9 @@ function App() {
                     <div className="w-px h-3 bg-slate-200 mx-0.5"></div>
                     <button
                       onClick={e => handleExportDocx(e, session)}
-                      title="Export DOCX"
-                      className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      title={isExporting === 'docx' ? 'Exporting...' : 'Export DOCX'}
+                      disabled={!!isExporting}
+                      className={`p-1.5 rounded-md transition-colors ${isExporting === 'docx' ? 'text-blue-600 animate-pulse bg-blue-50' : 'text-blue-400 hover:text-blue-600 hover:bg-blue-50'}`}
                     >
                       <svg
                         className="w-3.5 h-3.5"
@@ -334,8 +356,9 @@ function App() {
                     </button>
                     <button
                       onClick={e => handleExportPdf(e, session)}
-                      title="Export PDF"
-                      className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                      title={isExporting === 'pdf' ? 'Exporting...' : 'Export PDF'}
+                      disabled={!!isExporting}
+                      className={`p-1.5 rounded-md transition-colors ${isExporting === 'pdf' ? 'text-rose-600 animate-pulse bg-rose-50' : 'text-rose-400 hover:text-rose-600 hover:bg-rose-50'}`}
                     >
                       <svg
                         className="w-3.5 h-3.5"
@@ -355,6 +378,7 @@ function App() {
                     <button
                       onClick={e => handleDelete(e, session.id)}
                       title="Delete"
+                      disabled={!!isExporting}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                     >
                       <svg

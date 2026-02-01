@@ -1,8 +1,8 @@
 import { createContext } from 'react';
-import { type Session } from '../utils/storage';
+import { type SessionSummary } from '../utils/storage';
 
 export interface SessionContextType {
-  sessions: Session[];
+  sessions: SessionSummary[];
   activeSessionId: string | null;
   createSession: (name: string) => Promise<void>;
   activateSession: (id: string) => Promise<void>;
