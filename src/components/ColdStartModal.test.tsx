@@ -43,8 +43,8 @@ describe('ColdStartModal', () => {
   it('should close modal on Escape key press', async () => {
     render(<ColdStartModal onClose={mockOnClose} />);
 
-    const input = screen.getByLabelText('Session Name');
-    fireEvent.keyDown(input, { key: 'Escape' });
+    // Fire keydown on document since the handler is on window in capture phase
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
@@ -114,5 +114,17 @@ describe('ColdStartModal', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /creating/i })).toBeDisabled();
     });
+  });
+
+  it('should stop propagation of key events to prevent reaching background page', () => {
+    render(<ColdStartModal onClose={mockOnClose} />);
+
+    const stopPropagationSpy = vi.fn();
+    const event = new KeyboardEvent('keydown', { key: 'a', bubbles: true });
+    Object.defineProperty(event, 'stopPropagation', { value: stopPropagationSpy });
+
+    window.dispatchEvent(event);
+
+    expect(stopPropagationSpy).toHaveBeenCalled();
   });
 });

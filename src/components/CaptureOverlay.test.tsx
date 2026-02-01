@@ -86,4 +86,16 @@ describe('CaptureOverlay', () => {
     const selectionBox = container.querySelector('.border-blue-500');
     expect(selectionBox).toBeInTheDocument();
   });
+
+  it('should stop propagation of key events to prevent reaching background page', () => {
+    render(<CaptureOverlay image={mockImage} onCrop={mockOnCrop} onCancel={mockOnCancel} />);
+
+    const stopPropagationSpy = vi.fn();
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+    Object.defineProperty(event, 'stopPropagation', { value: stopPropagationSpy });
+
+    window.dispatchEvent(event);
+
+    expect(stopPropagationSpy).toHaveBeenCalled();
+  });
 });

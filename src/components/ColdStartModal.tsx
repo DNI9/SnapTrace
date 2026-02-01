@@ -22,6 +22,9 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
     // Prevent key events from reaching the background page
     const handleKeyDown = (e: KeyboardEvent) => {
       e.stopPropagation();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     };
     window.addEventListener('keydown', handleKeyDown, true);
 
@@ -29,7 +32,7 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
       document.body.style.overflow = originalStyle;
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, []);
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

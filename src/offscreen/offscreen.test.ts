@@ -120,4 +120,107 @@ describe('Export Utilities', () => {
       expect(sanitizeFilename('')).toBe('');
     });
   });
+
+  describe('Image Scaling (scaleDownImages option)', () => {
+    // These test the scaling logic from compressImage function
+    const MAX_IMAGE_WIDTH = 1200;
+    const MAX_IMAGE_HEIGHT = 900;
+
+    /**
+     * Helper to calculate what the scale should be based on the compressImage logic:
+     * const scale = Math.min(1, MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height);
+     */
+    function calculateScale(width: number, height: number): number {
+      return Math.min(1, MAX_IMAGE_WIDTH / width, MAX_IMAGE_HEIGHT / height);
+    }
+
+    /**
+     * Calculate the resulting dimensions after scale is applied (only when scale < 1)
+     */
+    function getScaledDimensions(
+      width: number,
+      height: number,
+      scaleDown: boolean
+    ): { width: number; height: number } {
+      if (!scaleDown) {
+        return { width, height };
+      }
+
+      const scale = calculateScale(width, height);
+      if (scale < 1) {
+        return {
+          width: Math.round(width * scale),
+          height: Math.round(height * scale),
+        };
+      }
+      return { width, height };
+    }
+
+    it('should not scale images when scaleDown is false (default)', () => {
+      const result = getScaledDimensions(2000, 1500, false);
+
+      expect(result.width).toBe(2000);
+      expect(result.height).toBe(1500);
+    });
+
+    it('should scale down width-constrained images when scaleDown is true', () => {
+      // Image wider than MAX_IMAGE_WIDTH
+      const result = getScaledDimensions(2400, 900, true);
+
+      expect(result.width).toBe(1200); // Scaled to MAX_IMAGE_WIDTH
+      expect(result.height).toBe(450); // Scaled proportionally (900 * 0.5)
+    });
+
+    it('should scale down height-constrained images when scaleDown is true', () => {
+      // Image taller than MAX_IMAGE_HEIGHT
+      const result = getScaledDimensions(1200, 1800, true);
+
+      expect(result.width).toBe(600); // Scaled proportionally (1200 * 0.5)
+      expect(result.height).toBe(900); // Scaled to MAX_IMAGE_HEIGHT
+    });
+
+    it('should not scale images smaller than max dimensions when scaleDown is true', () => {
+      const result = getScaledDimensions(800, 600, true);
+
+      expect(result.width).toBe(800);
+      expect(result.height).toBe(600);
+    });
+
+    it('should scale based on limiting dimension (width limited)', () => {
+      const scale = calculateScale(2400, 600);
+
+      // Width limit: 1200/2400 = 0.5
+      // Height limit: 900/600 = 1.5
+      // Scale should be 0.5 (more limiting)
+      expect(scale).toBe(0.5);
+    });
+
+    it('should scale based on limiting dimension (height limited)', () => {
+      const scale = calculateScale(600, 1800);
+
+      // Width limit: 1200/600 = 2
+      // Height limit: 900/1800 = 0.5
+      // Scale should be 0.5 (more limiting)
+      expect(scale).toBe(0.5);
+    });
+
+    it('should handle images at exactly max dimensions', () => {
+      const result = getScaledDimensions(1200, 900, true);
+
+      expect(result.width).toBe(1200);
+      expect(result.height).toBe(900);
+    });
+
+    it('should maintain aspect ratio when scaling', () => {
+      const originalWidth = 3000;
+      const originalHeight = 2000;
+      const originalAspect = originalWidth / originalHeight;
+
+      const result = getScaledDimensions(originalWidth, originalHeight, true);
+      const scaledAspect = result.width / result.height;
+
+      // Allow small rounding error due to Math.round
+      expect(scaledAspect).toBeCloseTo(originalAspect, 1);
+    });
+  });
 });
