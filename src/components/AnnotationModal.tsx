@@ -8,7 +8,7 @@ interface AnnotationModalProps {
   onCancel: () => void;
 }
 
-type Tool = 'none' | 'rectangle' | 'text';
+type Tool = 'none' | 'rectangle' | 'text' | 'step';
 
 interface FabricEvent {
   scenePoint: { x: number; y: number };
@@ -26,6 +26,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     const saved = localStorage.getItem(TOOL_STORAGE_KEY);
     return (saved as Tool) || 'none';
   });
+  const [stepCounter, setStepCounter] = useState(1);
 
   // Undo/Redo Stacks
   // We store JSON strings of the canvas state
@@ -269,6 +270,35 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
 
         // 3. Save state after adding text
         saveState();
+      } else if (currentTool === 'step') {
+        const circle = new fabric.Circle({
+          radius: 14,
+          fill: '#ef4444', // Red-500
+          originX: 'center',
+          originY: 'center',
+        });
+
+        const text = new fabric.Text(stepCounter.toString(), {
+          fontSize: 16,
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 'bold',
+          fill: 'white',
+          originX: 'center',
+          originY: 'center',
+        });
+
+        const group = new fabric.Group([circle, text], {
+          left: pointer.x,
+          top: pointer.y,
+          originX: 'center',
+          originY: 'center',
+          selectable: true,
+          hasControls: false, // allow selection to move, but not resize/rotate ideally
+        });
+
+        canvas.add(group);
+        setStepCounter(prev => prev + 1);
+        saveState();
       }
     };
 
@@ -326,7 +356,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
     };
-  }, [currentTool, saveState]);
+  }, [currentTool, saveState, stepCounter]);
 
   const handleSave = useCallback(async () => {
     if (!fabricCanvasRef.current || !imgElement || isSaving) return;
@@ -410,6 +440,8 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         setCurrentTool('text');
       } else if (e.key === 'v' || e.key === 'V') {
         setCurrentTool('none');
+      } else if (e.key === 's' || e.key === 'S') {
+        setCurrentTool('step');
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Only handle delete if input is not focused
         if (document.activeElement !== inputRef.current) {
@@ -527,6 +559,20 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
                 <path d="M9 20h6" />
                 <path d="M12 4v16" />
               </svg>
+            </button>
+
+            <button
+              className={`p-2 rounded-full transition-all duration-200 ${
+                currentTool === 'step'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              }`}
+              onClick={() => setCurrentTool('step')}
+              title="Step Number (S)"
+            >
+              <div className="w-[18px] h-[18px] flex items-center justify-center border-2 border-current rounded-full text-[10px] font-bold">
+                1
+              </div>
             </button>
 
             <div className="w-5 h-px bg-slate-200 my-1"></div>
