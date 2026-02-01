@@ -15,52 +15,28 @@ if (!releaseType) {
 const packageJsonPath = path.resolve(__dirname, '../package.json');
 const manifestJsonPath = path.resolve(__dirname, '../manifest.json');
 
-const packageJson = require(packageJsonPath);
-const manifestJson = require(manifestJsonPath);
-
-const currentVersion = packageJson.version;
-let newVersion;
-
-if (['major', 'minor', 'patch'].includes(releaseType)) {
-  const parts = currentVersion.split('.').map(Number);
-  if (releaseType === 'major') {
-    parts[0]++;
-    parts[1] = 0;
-    parts[2] = 0;
-  } else if (releaseType === 'minor') {
-    parts[1]++;
-    parts[2] = 0;
-  } else if (releaseType === 'patch') {
-    parts[2]++;
-  }
-  newVersion = parts.join('.');
-} else {
-    // Basic validation for semantic versioning
-    if (!/^\d+\.\d+\.\d+$/.test(releaseType)) {
-        console.error('Invalid version format. Please use x.y.z');
-        process.exit(1);
-    }
-  newVersion = releaseType;
+try {
+  // Bump version using npm (updates package.json and package-lock.json)
+  execSync(`npm version ${releaseType} --no-git-tag-version`, { stdio: 'inherit' });
+} catch (error) {
+  console.error('Failed to bump version:', error.message);
+  process.exit(1);
 }
 
-console.log(`Bumping version from ${currentVersion} to ${newVersion}...`);
-
-// Update package.json
-packageJson.version = newVersion;
-fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
-console.log('Updated package.json');
+// Read the updated package.json to get the new version
+const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+const newVersion = updatedPackageJson.version;
 
 // Update manifest.json
+const manifestJson = JSON.parse(fs.readFileSync(manifestJsonPath, 'utf8'));
 manifestJson.version = newVersion;
-// Manifest often doesn't need "version_name" but if it's there we could update it too. 
-// For now, just strict version matching.
 fs.writeFileSync(manifestJsonPath, JSON.stringify(manifestJson, null, 2) + '\n');
 console.log('Updated manifest.json');
 
 console.log(`\nVersion updated to ${newVersion}.`);
 try {
   console.log('\nCommitting and tagging...');
-  execSync('git add package.json manifest.json', { stdio: 'inherit' });
+  execSync('git add package.json package-lock.json manifest.json', { stdio: 'inherit' });
   execSync(`git commit -m "chore(release): v${newVersion}"`, { stdio: 'inherit' });
   execSync(`git tag v${newVersion}`, { stdio: 'inherit' });
 
@@ -72,7 +48,7 @@ try {
   rl.question('\nDo you want to push the tag? (y/N) ', (answer) => {
     if (answer.trim().toLowerCase() === 'y') {
       try {
-        execSync('git push --follow-tags', { stdio: 'inherit' });
+        execSync('git push origin --tags', { stdio: 'inherit' });
       } catch (pushError) {
         console.error('Failed to push:', pushError.message);
       }
