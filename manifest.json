@@ -1,56 +1,56 @@
 {
-    "manifest_version": 3,
-    "name": "SnapTrace",
-    "version": "1.0.0",
-    "description": "SnapTrace: High-velocity evidence collector",
-    "action": {
-        "default_popup": "index.html",
-        "default_icon": {
-            "16": "public/icon-16.png",
-            "32": "public/icon-32.png",
-            "48": "public/icon-48.png",
-            "128": "public/icon-128.png"
-        }
-    },
-    "icons": {
-        "16": "public/icon-16.png",
-        "32": "public/icon-32.png",
-        "48": "public/icon-48.png",
-        "128": "public/icon-128.png"
-    },
-    "permissions": [
-        "storage",
-        "activeTab",
-        "scripting",
-        "downloads",
-        "offscreen"
-    ],
-    "background": {
-        "service_worker": "src/background/index.ts",
-        "type": "module"
-    },
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "src/content/index.tsx"
-            ]
-        }
-    ],
-    "commands": {
-        "toggle-capture": {
-            "suggested_key": {
-                "default": "Alt+S"
-            },
-            "description": "Start Capture / Toggle Session"
-        },
-        "open-popup": {
-            "suggested_key": {
-                "default": "Alt+P"
-            },
-            "description": "Open Extension Popup"
-        }
+  "manifest_version": 3,
+  "name": "SnapTrace",
+  "version": "1.2.0",
+  "description": "SnapTrace: High-velocity evidence collector",
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "public/icon-16.png",
+      "32": "public/icon-32.png",
+      "48": "public/icon-48.png",
+      "128": "public/icon-128.png"
     }
+  },
+  "icons": {
+    "16": "public/icon-16.png",
+    "32": "public/icon-32.png",
+    "48": "public/icon-48.png",
+    "128": "public/icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "offscreen"
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/index.tsx"
+      ]
+    }
+  ],
+  "commands": {
+    "toggle-capture": {
+      "suggested_key": {
+        "default": "Alt+S"
+      },
+      "description": "Start Capture / Toggle Session"
+    },
+    "open-popup": {
+      "suggested_key": {
+        "default": "Alt+P"
+      },
+      "description": "Open Extension Popup"
+    }
+  }
 }
