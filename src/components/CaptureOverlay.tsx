@@ -45,9 +45,11 @@ const CaptureOverlay: React.FC<CaptureOverlayProps> = ({ image, onCrop, onCancel
       e.stopPropagation();
 
       if (e.key === 'Enter') {
+        e.preventDefault();
         // Capture full viewport
         onCrop(image);
       } else if (e.key === 'Escape') {
+        e.preventDefault();
         onCancel();
       }
     },
@@ -55,8 +57,8 @@ const CaptureOverlay: React.FC<CaptureOverlayProps> = ({ image, onCrop, onCancel
   );
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [handleKeyDown]);
 
   const finishCrop = (start: { x: number; y: number }, end: { x: number; y: number }) => {
