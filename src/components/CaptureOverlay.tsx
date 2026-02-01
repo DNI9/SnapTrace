@@ -41,6 +41,9 @@ const CaptureOverlay: React.FC<CaptureOverlayProps> = ({ image, onCrop, onCancel
 
   const handleKeyDown = React.useCallback(
     (e: KeyboardEvent) => {
+      // Stop propagation to prevent key events from reaching the background page
+      e.stopPropagation();
+
       if (e.key === 'Enter') {
         // Capture full viewport
         onCrop(image);

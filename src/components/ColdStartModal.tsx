@@ -19,8 +19,15 @@ const ColdStartModal: React.FC<ColdStartModalProps> = ({ onClose }) => {
     const originalStyle = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = 'hidden';
 
+    // Prevent key events from reaching the background page
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.stopPropagation();
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+
     return () => {
       document.body.style.overflow = originalStyle;
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, []);
 

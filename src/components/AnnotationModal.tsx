@@ -388,6 +388,9 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Stop propagation to prevent key events from reaching the background page
+      e.stopPropagation();
+
       // Global Save Shortcut (Ctrl+Enter or Cmd+Enter)
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
