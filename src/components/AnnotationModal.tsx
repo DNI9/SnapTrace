@@ -162,6 +162,10 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       canvas.backgroundImage = fImg;
       canvas.requestRenderAll();
 
+      // Recalculate offset to ensure mouse coordinates are correct relative to the canvas
+      // This is crucial because the canvas is in a centered flex container
+      canvas.calcOffset();
+
       // Save initial state (Undo base)
       saveState();
     };
@@ -497,12 +501,12 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
 
             <button
               className={`p-2 rounded-full transition-all duration-200 ${
-                historyLength === 0
+                historyLength <= 1
                   ? 'text-slate-300 cursor-not-allowed'
                   : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
               }`}
               onClick={handleUndo}
-              disabled={historyLength === 0}
+              disabled={historyLength <= 1}
               title="Undo (Ctrl+Z)"
             >
               <svg
