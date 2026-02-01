@@ -30,7 +30,7 @@ jobs:
         run: npm run build
 
       - name: Zip Extension
-        run: zip -r snaptrace-extension.zip dist
+        run: cd dist && zip -r ../snaptrace-extension.zip . -x ".vite/*"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
