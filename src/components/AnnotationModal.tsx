@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as fabric from 'fabric';
 import { compressImage } from '../utils/storage';
 
@@ -72,19 +72,54 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     };
   }, []);
 
+  // Helper to apply background
+  const applyBackground = useCallback((canvas: fabric.Canvas, img: HTMLImageElement) => {
+    const containerW = containerRef.current?.clientWidth || 800;
+    const containerH = containerRef.current?.clientHeight || 600;
+
+    const scale = Math.min(
+      (containerW - 80) / img.naturalWidth,
+      (containerH - 80) / img.naturalHeight,
+      1
+    );
+
+    const finalW = img.naturalWidth * scale;
+    const finalH = img.naturalHeight * scale;
+
+    canvas.setDimensions({ width: finalW, height: finalH });
+
+    const fImg = new fabric.Image(img);
+    fImg.set({
+      originX: 'left',
+      originY: 'top',
+      scaleX: scale,
+      scaleY: scale,
+      selectable: false,
+      evented: false,
+    });
+
+    canvas.backgroundImage = fImg;
+    canvas.requestRenderAll();
+  }, []);
+
   // Helper to save state
-  const saveState = () => {
+  const saveState = useCallback(() => {
     if (!fabricCanvasRef.current) return;
-    const json = JSON.stringify(fabricCanvasRef.current.toJSON());
-    historyRef.current.push(json);
+    // Exclude background from state
+    const json = fabricCanvasRef.current.toJSON();
+    delete json.backgroundImage;
+    delete json.background; // defensive
+
+    const jsonString = JSON.stringify(json);
+    historyRef.current.push(jsonString);
     redoStackRef.current = []; // Clear redo on new action
     setHistoryLength(historyRef.current.length);
     setRedoLength(0);
-  };
+  }, []);
 
-  const handleUndo = async () => {
+  const handleUndo = useCallback(async () => {
     // Keep at least one state (the initial base state)
-    if (historyRef.current.length <= 1 || !fabricCanvasRef.current) return;
+    if (historyRef.current.length <= 1 || !fabricCanvasRef.current || !imgElement) return;
 
     // Pop the current state (e.g. State N)
     const currentState = historyRef.current.pop();
@@ -97,27 +132,46 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
 
     if (previousState) {
       await fabricCanvasRef.current.loadFromJSON(JSON.parse(previousState));
+      // Re-apply background
+      applyBackground(fabricCanvasRef.current, imgElement);
+      // Restore interaction properties
+      fabricCanvasRef.current.selection = currentTool === 'none';
+      fabricCanvasRef.current.defaultCursor = currentTool === 'none' ? 'default' : 'crosshair';
+      fabricCanvasRef.current.forEachObject(obj => {
+        obj.selectable = currentTool === 'none';
+        obj.evented = currentTool === 'none';
+      });
+
       fabricCanvasRef.current.requestRenderAll();
     }
 
     setHistoryLength(historyRef.current.length);
     setRedoLength(redoStackRef.current.length);
-  };
+  }, [currentTool, imgElement, applyBackground]);
 
-  const handleRedo = async () => {
-    if (redoStackRef.current.length === 0 || !fabricCanvasRef.current) return;
+  const handleRedo = useCallback(async () => {
+    if (redoStackRef.current.length === 0 || !fabricCanvasRef.current || !imgElement) return;
 
     const nextState = redoStackRef.current.pop();
 
     if (nextState) {
       historyRef.current.push(nextState);
       await fabricCanvasRef.current.loadFromJSON(JSON.parse(nextState));
+      // Re-apply background
+      applyBackground(fabricCanvasRef.current, imgElement);
+      // Restore interaction properties
+      fabricCanvasRef.current.selection = currentTool === 'none';
+      fabricCanvasRef.current.defaultCursor = currentTool === 'none' ? 'default' : 'crosshair';
+      fabricCanvasRef.current.forEachObject(obj => {
+        obj.selectable = currentTool === 'none';
+        obj.evented = currentTool === 'none';
+      });
       fabricCanvasRef.current.requestRenderAll();
     }
 
     setHistoryLength(historyRef.current.length);
     setRedoLength(redoStackRef.current.length);
-  };
+  }, [currentTool, imgElement, applyBackground]);
 
   // Initialize Fabric Canvas and Image
   useEffect(() => {
@@ -135,32 +189,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     img.src = image;
     img.onload = () => {
       setImgElement(img);
-      const containerW = containerRef.current?.clientWidth || 800;
-      const containerH = containerRef.current?.clientHeight || 600;
-
-      const scale = Math.min(
-        (containerW - 80) / img.naturalWidth,
-        (containerH - 80) / img.naturalHeight,
-        1
-      );
-
-      const finalW = img.naturalWidth * scale;
-      const finalH = img.naturalHeight * scale;
-
-      canvas.setDimensions({ width: finalW, height: finalH });
-
-      const fImg = new fabric.Image(img);
-      fImg.set({
-        originX: 'left',
-        originY: 'top',
-        scaleX: scale,
-        scaleY: scale,
-        selectable: false,
-        evented: false,
-      });
-
-      canvas.backgroundImage = fImg;
-      canvas.requestRenderAll();
+      applyBackground(canvas, img);
 
       // Recalculate offset to ensure mouse coordinates are correct relative to the canvas
       // This is crucial because the canvas is in a centered flex container
@@ -170,27 +199,26 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       saveState();
     };
 
-    // Modification listener for Undo/Redo
+    // Explicit State Saving Listeners
+    // 1. Modification (Move, Scale, Rotate)
     const onObjectModified = () => {
       saveState();
     };
-
     canvas.on('object:modified', onObjectModified);
-    canvas.on('object:added', e => {
-      // We only want to save state on user addition, not initial load.
-      // But initial load is async.
-      // A simple workaround is checking if we are drawing or if interaction happens.
-      // For now, let's assume valid user additions.
-      if (e.target !== canvas.backgroundImage) {
-        saveState();
-      }
-    });
+
+    // 2. Text Editing Finished
+    const onTextEditingExited = () => {
+      saveState();
+    };
+    canvas.on('text:editing:exited', onTextEditingExited);
+
+    // NOTE: object:added is intentionally REMOVED to prevent history loops during loadFromJSON
 
     return () => {
       canvas.dispose();
       fabricCanvasRef.current = null;
     };
-  }, [image]);
+  }, [image, applyBackground, saveState]);
 
   // Event Listeners for Drawing
   useEffect(() => {
@@ -238,7 +266,9 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
         text.enterEditing();
         text.selectAll();
         setCurrentTool('none');
-        // Object added event triggers saveState
+
+        // 3. Save state after adding text
+        saveState();
       }
     };
 
@@ -275,10 +305,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
             canvas.remove(activeObjRef.current);
           } else {
             activeObjRef.current.setCoords();
-            // Trigger save state explicitly if needed, but 'object:added' covers 'add'.
-            // However, dimensions changed during mouse move, so 'object:modified' might not trigger?
-            // object:added triggered on creation. Modified usually needs user action.
-            // Let's manually save state here to be safe for the resize.
+            // 4. Save state after drawing rectangle
             saveState();
           }
           activeObjRef.current = null;
@@ -299,7 +326,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
     };
-  }, [currentTool]);
+  }, [currentTool, saveState]);
 
   const handleSave = async () => {
     if (!fabricCanvasRef.current || !imgElement || isSaving) return;
@@ -399,7 +426,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ image, onSave, onCanc
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [onCancel, historyLength, redoLength]); // Re-bind for closures or use Refs
+  }, [onCancel, historyLength, redoLength, handleUndo, handleRedo, saveState]); // Re-bind for closures or use Refs
 
   const inputRef = useRef<HTMLInputElement>(null);
 
