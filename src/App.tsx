@@ -131,9 +131,6 @@ function App() {
     <div className="w-96 h-[500px] flex flex-col bg-slate-50 font-sans text-slate-800">
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 p-4 flex justify-between items-center border-b border-slate-100 shadow-sm">
         <div className="flex items-center gap-2">
-          {/* Logo Icon (Simple Shape) */}
-          {/* Logo Icon */}
-          <img src="/logo.png" alt="SnapTrace Logo" className="w-8 h-8 rounded-lg shadow-sm" />
           <h1 className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-violet-700 to-fuchsia-600">
             SnapTrace
           </h1>
